@@ -14,17 +14,13 @@
 .import Sine
 .import Cosine
 
-OverworldTiles:          .incbin "graphics/overworld-tiles.vra"
-OverworldTilePaletteMap: .incbin "graphics/overworld-tile-palettes.bin"
-OverworldPalette:        .incbin "graphics/overworld.pal"
+OverworldChr:             .incbin "graphics/overworld-chr.vra"
+OverworldPalette:         .incbin "graphics/overworld.pal"
 
-OverworldTilemap:                 .incbin "maps/overworld-tilemap.bin"
-OverworldWestHyruleCompressed:    .incbin "maps/overworld-west.bin"
-OverworldEastHyruleCompressed:    .incbin "maps/overworld-east.bin"
-OverworldDeathMountainCompressed: .incbin "maps/overworld-death-mountain.bin"
-OverworldMazeIslandCompressed:    .incbin "maps/overworld-maze-island.bin"
+OverworldTilemaps:        .incbin "data/overworld-tilemaps.bin"
+OverworldTilePaletteMaps: .incbin "data/overworld-tile-palette-maps.bin"
 
-OverworldMap = $7E7000 ; store the decompressed overworld map from $7E:7000-7E:7FFF
+OverworldMap = $7E4000 ; store the decompressed overworld map from $7E:4000-7E:7FFF (64 rows x 256 columns, 4096 bytes)
 
 MAPPOSX  = $1000
 MAPPOSY  = $1002

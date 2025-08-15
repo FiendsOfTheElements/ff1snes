@@ -2,6 +2,7 @@
 .a8
 .i16
 
+.include "defines.inc"
 .include "registers.inc"
 .include "joypad.inc"
 
@@ -14,16 +15,38 @@
 .import Sine
 .import Cosine
 
+.segment "OVERWORLD"
+.incbin "data/overworld-map.bin"
+
+.segment "CODE"
+
+; for now this can live in the code segment, but we'll probably move it.
 OverworldChr:             .incbin "graphics/overworld-chr.vra"
-OverworldPalette:         .incbin "graphics/overworld.pal"
+OverworldPalette:
+	COLOR  0,  0,  0
+	COLOR 24,  0,  0
+	COLOR 15, 15, 15
+	COLOR 31, 31, 31
+	COLOR  0,  0,  0
+	COLOR 24,  0,  0
+	COLOR 31, 15,  0
+	COLOR 31, 31, 15
+	COLOR  0,  0,  0
+	COLOR 24,  0,  0
+	COLOR 24, 24, 31
+	COLOR 10, 10, 31
+	COLOR  0,  0,  0
+	COLOR 24,  0,  0
+	COLOR 15, 31, 15
+	COLOR 24,  0,  0
 
 OverworldTilemaps:        .incbin "data/overworld-tilemaps.bin"
 OverworldTilePaletteMaps: .incbin "data/overworld-tile-palette-maps.bin"
 
 OverworldMap = $7E4000 ; store the decompressed overworld map from $7E:4000-7E:7FFF (64 rows x 256 columns, 4096 bytes)
 
-MAPPOSX  = $1000
-MAPPOSY  = $1002
+.export MAPPOSX  = $1000
+.export MAPPOSY  = $1002
 MINPOSX  = $0080
 MAXPOSX  = $0380
 MINPOSY  = $0070

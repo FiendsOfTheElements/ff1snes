@@ -16,6 +16,7 @@
 .import Cosine
 
 .segment "OVERWORLD"
+CompressedOverworld:
 .incbin "data/overworld-map.bin"
 
 .segment "CODE"
@@ -105,11 +106,65 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	rts
 .endproc
 
+.proc DecompressMapRow
+	; Map rows are referenced by a pointer table, 2 bytes per row, and the rows
+	; themselves are RLE compressed.  There are 128 possible tiles, so the lower 7 bits
+	; represent the tile that appears next.  If the MSB is not set, then the byte simply
+	; represents one tile.  If the MSB is set, then the following byte is the number of
+	; times to repeat the tile -- a "repeat" value of 1 means the tile appears twice.
+	; Rows are terminated by $FF.
+	; 
+	; The value in the A register is the row we want to decompress.
+	; We will decompress it into the (A mod 64)th row of uncompressed map data.
+	TempSrc = $0000            ; Keep track of where we're reading from
+	rep #$30                   ; Set A,X,Y to 16-bit (optimize this out?)
+	pha                        ; remember the actual row
+	and #$003f                 ; row mod 64
+	xba                        ; times the row length (256)
+	tay                        ; Y now points to the destination row buffer
+	pla                        ; restore the actual row
+	asl                        ; row# times 2 to get the pointer
+	tax
+	lda CompressedOverworld, X ; get the pointer
+	tax                        ; X now points to the compressed row data
+
+@Loop:
+	sep #$20                   ; set A to 8-bit
+	lda CompressedOverworld, X
+	inx
+	cmp #$ff                   ; are we done?
+	bne :+
+	rts
+:
+	cmp #$80                   ; test the MSB
+	bcc :+
+                               ; if we're here, just one tile
+	sta OverworldMap, Y        ; store it
+	iny                        ; bump it
+	jmp @Loop                  ; loop it
+:
+	pha
+	rep #$20                   ; set A to 16-bit (because X is 16-bit)
+	lda CompressedOverworld, X ; get the number of repeats
+	inx
+	stx TempSrc                ; remember where we were reading from
+	and #$00ff                 ; we only want one byte
+	tax                        ; X will count down
+	sep #$20                   ; A back to 8-bit
+	pla                        ; get the tile back
+@LoopRepeat:
+	sta OverworldMap, X        ; store it
+	iny                        ; bump it
+	dex                        ; loop it
+	bpl @LoopRepeat
+	ldx TempSrc                ; restore where we were reading from
+	jmp @Loop
+
 .proc LoadOverworldMapData
-	; Here we decompress the map data.  We need to store this in memory to refer to
-	; later, so we do the full decompression before loading characters to VRAM.
-	; Map data is RLE, with the upper 4 bytes being a count, and the lower 4 being the map tile.
-	; An overworld map is 64x64, 4096 bytes ($1000).  We can store this from $7E:7000-7E:7FFF.
+	; Here we decompress the map data.  The map is 256x256, but we will only load 64 rows
+	; at a time, centered around the player's Y coordinate.  Each map row will go into the
+	; "slot" of the actual row mod 64, so as you scroll up and down, the rows behind you
+	; get cycled out for rows in front of you.
 	MapValue = $00
 	rep #$20        ; set A to 16-bit so we can
 	lda #$0000      ; clear the high byte

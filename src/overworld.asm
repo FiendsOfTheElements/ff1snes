@@ -106,6 +106,32 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	rts
 .endproc
 
+.proc LoadOverworldMapData
+	; Here we decompress the map data.  The map is 256x256, but we will only load 64 rows
+	; at a time, centered around the player's Y coordinate.  Each map row will go into the
+	; "slot" of the actual row mod 64, so as you scroll up and down, the rows behind you
+	; get cycled out for rows in front of you.
+	TempMaxY = $00             ; Keep track of the maximum Y position
+	sep #$30                   ; A,X,Y to 8-bit.  We'll wrap around the world correctly.
+	lda MAPPOSY				   ; get the player's Y position
+	clc
+	adc #$1E                   ; max Y position is 30 rows higher (farther down)
+	sta TempMaxY
+	clc
+	sbc #$3F                   ; min Y position is 63 rows below max.  We go farther up than
+	tay                        ; down because we can see farther up due to the perspective.
+@Loop:
+	phy                        ; Save Y which will definitely be overwritten by decoding
+	php                        ; Save the bitness of the registers
+	jsr DecompressMapRow       ; Decompress one row
+	plp                        ; Restore the bitness before
+	ply                        ; restoring Y, otherwise we pop the wrong number of bytes
+	iny
+	cpy TempMaxY
+	bne @Loop
+	rts
+.endproc
+
 .proc DecompressMapRow
 	; Map rows are referenced by a pointer table, 2 bytes per row, and the rows
 	; themselves are RLE compressed.  There are 128 possible tiles, so the lower 7 bits
@@ -113,12 +139,13 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	; represents one tile.  If the MSB is set, then the following byte is the number of
 	; times to repeat the tile -- a "repeat" value of 1 means the tile appears twice.
 	; Rows are terminated by $FF.
-	; 
-	; The value in the A register is the row we want to decompress.
-	; We will decompress it into the (A mod 64)th row of uncompressed map data.
-	TempSrc = $0000            ; Keep track of where we're reading from
-	rep #$30                   ; Set A,X,Y to 16-bit (optimize this out?)
-	pha                        ; remember the actual row
+	;
+	; The value in the Y register is the row we want to decompress.
+	; We will decompress it into the (Y mod 64)th row of uncompressed map data.
+	TempSrc = $02              ; Keep track of where we're reading from
+	rep #$30                   ; Set A,X,Y to 16-bit
+	phy                        ; remember the actual row
+	tya
 	and #$003f                 ; row mod 64
 	xba                        ; times the row length (256)
 	tay                        ; Y now points to the destination row buffer
@@ -159,46 +186,6 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	bpl @LoopRepeat
 	ldx TempSrc                ; restore where we were reading from
 	jmp @Loop
-
-.proc LoadOverworldMapData
-	; Here we decompress the map data.  The map is 256x256, but we will only load 64 rows
-	; at a time, centered around the player's Y coordinate.  Each map row will go into the
-	; "slot" of the actual row mod 64, so as you scroll up and down, the rows behind you
-	; get cycled out for rows in front of you.
-	MapValue = $00
-	rep #$20        ; set A to 16-bit so we can
-	lda #$0000      ; clear the high byte
-	sep #$20        ; set A to 8-bit
-	rep #$10        ; set X,Y to 16-bit
-	ldy #$0000
-	ldx #$0000
-
-MapLoop:
-	lda OverworldWestHyruleCompressed, Y ; load a byte, byte is RRRR VVVV
-	sta MapValue
-	lsr                                  ; RRRR is the run length - 1
-	lsr                                  ; VVVV is the value
-	lsr                                  ; shift down to get 0000 RRRR
-	lsr
-	clc
-	adc #$01                             ; add 1 to get the run length
-	phy                                  ; need to use Y to repeat the run
-	tay                                  ; put run length in Y
-	lda MapValue
-	and #$0F                             ; get the value to repeat 0000 VVVV
-
-RLELoop:
-	sta OverworldMap, X                  ; store the value to the map
-	inx                                  ; next map position
-	dey                                  ; for the length of the run
-	bne RLELoop
-
-	ply                                  ; get the compressed index back
-	iny                                  ; go to the next compressed byte
-	cpx #$1000                           ; length of decompressed map data
-	bne MapLoop                          ; keep going until we fill the map
-
-	rts
 .endproc
 
 .proc LoadOverworldCharacters

@@ -7,7 +7,7 @@ demo.smc: $(OBJ)
 
 obj/%.o: src/%.asm $(INC)
 	@mkdir -p obj
-	ca65 --cpu 65816 --include-dir includes --bin-include-dir includes --smart -o $@ $<
+	ca65 --cpu 65816 --include-dir includes --bin-include-dir assets --smart -o $@ $<
 
 clean:
 	rm obj/*

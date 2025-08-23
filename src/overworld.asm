@@ -22,7 +22,7 @@ CompressedOverworld:
 .segment "CODE"
 
 ; for now this can live in the code segment, but we'll probably move it.
-OverworldChr:             .incbin "graphics/overworld-chr.vra"
+OverworldChr:             .incbin "graphics/overworld-chr.4bpp"
 OverworldPalette:
 	COLOR  0,  0,  0
 	COLOR 24,  0,  0

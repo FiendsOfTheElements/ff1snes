@@ -3,7 +3,7 @@ OBJ = $(patsubst src/%.asm, obj/%.o, $(SRC))
 INC = $(wildcard includes/*.inc)
 
 demo.smc: $(OBJ)
-	ld65 -C memory-map.cfg $(OBJ) -o z2snes.smc
+	ld65 -C memory-map.cfg $(OBJ) -o ff1snes.smc
 
 rip:
 	dotnet run --project utils/ff1ripper

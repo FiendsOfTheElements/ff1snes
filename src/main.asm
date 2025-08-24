@@ -40,6 +40,9 @@
 .import DoOverworldMovement
 .import SetMode7Matrix
 
+.import MAPPOSX
+.import MAPPOSY
+
 .include "registers.inc"
 
 .segment "CODE"
@@ -53,6 +56,11 @@
 
 	ldx #$1fff              ; set the stack pointer to $1fff
 	txs
+
+	ldx #$0990              ; set the initial scroll
+	stx MAPPOSX
+	ldy #$0A50
+	sty MAPPOSY
 
 	jsr LoadOverworld
 

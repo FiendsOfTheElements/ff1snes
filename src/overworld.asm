@@ -44,7 +44,8 @@ OverworldPalette:
 OverworldTilemaps:        .incbin "data/overworld-tilemaps.bin"
 OverworldTilePaletteMaps: .incbin "data/overworld-tile-palette-maps.bin"
 
-OverworldMap = $7E4000 ; store the decompressed overworld map from $7E:4000-7E:7FFF (64 rows x 256 columns, 4096 bytes)
+OverworldMap = $4000 ; store the decompressed overworld map from $7E:4000-7E:7FFF (64 rows x 256 columns, 4096 bytes)
+OverworldMapBank = $7E
 
 .export MAPPOSX  = $1000
 .export MAPPOSY  = $1002
@@ -57,7 +58,6 @@ MAPZOOM  = $1006
 MAXZOOM  = $7F   ; zoom value is fixed point, where $0040 is 1.0
 MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 
-; $188, $178
 .proc LoadOverworld
 	sep #$20                ; set A to 8-bit
 	lda #$8f                ; force v-blanking
@@ -66,14 +66,8 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 
 	jsr LoadOverworldMapData
 	jsr LoadOverworldCharacters
-	jsr LoadOverworldGraphics
 	jsr LoadOverworldPalette
 
-	rep #$20                ; set A to 16-bit
-	lda #$0188              ; initial x scroll
-	sta MAPPOSX
-	lda #$0178              ; initial y scroll
-	sta MAPPOSY
 	stz MAPANGLE            ; initial rotation (none)
 	lda #$0040              ; initial zoom (1x)
 	sta MAPZOOM
@@ -143,6 +137,10 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	; The value in the Y register is the row we want to decompress.
 	; We will decompress it into the (Y mod 64)th row of uncompressed map data.
 	TempSrc = $02              ; Keep track of where we're reading from
+	sep #$20                   ; Set A to 8-bit
+	lda BANK_OVERWORLD         ; Set data bank to overworld source
+	pha
+	plb
 	rep #$30                   ; Set A,X,Y to 16-bit
 	phy                        ; remember the actual row
 	tya
@@ -157,20 +155,27 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 
 @Loop:
 	sep #$20                   ; set A to 8-bit
+	lda BANK_OVERWORLD         ; Set data bank to overworld source
+	pha
+	plb
 	lda CompressedOverworld, X
 	inx
 	cmp #$ff                   ; are we done?
 	bne :+
 	rts
 :
+	pha                        ; remember the tile
 	cmp #$80                   ; test the MSB
 	bcc :+
                                ; if we're here, just one tile
+	lda OverworldMapBank       ; set data bank to overworld destination
+	pha
+	plb
+	pla                        ; retrieve the tile
 	sta OverworldMap, Y        ; store it
 	iny                        ; bump it
 	jmp @Loop                  ; loop it
-:
-	pha
+:                              ; if we're here, we repeat the tile
 	rep #$20                   ; set A to 16-bit (because X is 16-bit)
 	lda CompressedOverworld, X ; get the number of repeats
 	inx
@@ -178,6 +183,9 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	and #$00ff                 ; we only want one byte
 	tax                        ; X will count down
 	sep #$20                   ; A back to 8-bit
+	lda OverworldMapBank       ; set data bank to overworld destination
+	pha
+	plb
 	pla                        ; get the tile back
 @LoopRepeat:
 	sta OverworldMap, X        ; store it
@@ -189,141 +197,22 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 .endproc
 
 .proc LoadOverworldCharacters
-	; The overworld tile map describes the 4 characters belonging to each overworld square.
-	; We've got the entire decompressed map, so we just walk through it and put the characters
-	; into VRAM.  The size of the map is exactly the size of the mode 7 background: 64x64 map
-	; squares, each 2x2 characters, for 128x128.
-	rep #$20                    ; set A to 16-bit so we can
-	lda #$0000                  ; clear the high byte
-	sep #$20                    ; set A to 8-bit
-	rep #$10                    ; set X,Y to 16-bit
+	; There are 256 8x8 characters that make up the graphics for the overworld.
+	; All we need to do is shove them into VRAM starting at address 0.
+	sep #$20                    ; A to 8-bit
+	rep #$10                    ; X,Y to 16-bit
 	ldx #$0000
 	stx VMADDL                  ; start at VRAM address 0
-	stz VMAINC                  ; increment VRAM when writing to VMADDL
-
-MapLoop:
-	ldy #$40                    ; 64 map squares per row
-RowLoopTop:
-	phy                         ; save the index
-	ldy #$0000                  ; zero the high part of Y
-	lda OverworldMap, X         ; get a map square
-	clc
-	asl                         ; multiply by 4
-	asl
-	tay                         ; use it to index
-	lda OverworldTilemap, Y     ; the overworld tilemap (upper-left character)
-	sta VMDATAL                 ; write it to VRAM
-	lda OverworldTilemap + 2, Y ; get the upper-right character
-	sta VMDATAL                 ; write it to VRAM
-	inx                         ; next map square
-	ply                         ; get the column index back
-	dey
-	bne RowLoopTop
-
-	ldy #$40                    ; process the same row again, bottom tiles this time
-	rep #$20                    ; set A to 16-bit
-	txa
-	sec
-	sbc #$40                    ; go back to the beginning of the row
-	tax
-	lda #$0000                  ; clear high byte of A to avoid shenanigans
-	sep #$20                    ; set A to 8-bit
-
-RowLoopBottom:
-	phy                         ; save the index
-	ldy #$0000                  ; zero the high part of Y
-	lda OverworldMap, X         ; get a map square
-	clc
-	asl                         ; multiply by 4
-	asl
-	tay                         ; use it to index
-	lda OverworldTilemap + 1, Y ; the overworld tilemap (lower-left character)
-	sta VMDATAL                 ; write it to VRAM
-	lda OverworldTilemap + 3, Y ; get the lower-right character
-	sta VMDATAL                 ; write it to VRAM
-	inx                         ; next map square
-	ply                         ; get the column index back
-	dey
-	bne RowLoopBottom
-
-	cpx #$1000                  ; size of map data
-	bne MapLoop
-
-	rts
-.endproc
-
-.proc LoadOverworldGraphics
-	; Tile data is in 2bpp planar format, and we need to convert to 8bpp linear for mode 7.
-	rep #$20        ; set A to 16-bit so we can
-	lda #$0000      ; clear the high byte
-	sep #$20        ; set A to 8-bit
-	rep #$10        ; set X,Y to 16-bit
-	ldx #$0000
-	stx VMADDL      ; start at VRAM address 0
-	lda #$80
-	sta VMAINC      ; increment VRAM 2 bytes when high byte is written
-
-	Tile             = $00
-	PixelValue       = $02
-	TilePaletteIndex = $04
-TileLoop:
-	rep #$20                       ; set A to 16-bit
-	txa                            ; X is the index into the tile data, we also need the index into the tile palette map
-	lsr                            ; A tile is 16 bytes, and a palette is 4 bytes, so the palette index is the
-	lsr                            ; tile index divided by 4...
-	and #$FFFC                     ; with the lower two bits masked off (these will be the 2bpp color value of the tile)
-	sta TilePaletteIndex           ; save the tile palette index
-	sep #$20                       ; set A to 8-bit
-
-    lda OverworldTiles, X          ; load a byte of tile data
-	sta Tile                       ; put it in memory
-	lda OverworldTiles + 8, X      ; load the same byte from the other bitplane, 8 bytes after
-	sta Tile + 1                   ; put it in memory
-	phx                            ; save tile index
-	ldy #$0008                     ; loop 8 times, once for each bit (a pixel is one bit from each of the two bitplanes)
-PixelLoop:
-	lda Tile                       ; load byte from the low bitplane
-	asl                            ; shift the high bit into carry
-	sta Tile                       ; save the shifted byte
-	lda #$00                       ; clear A
-	rol                            ; rotate carry into A, A now has the value from the low bitplane
-	sta PixelValue                 ; store that in memory
-	lda Tile + 1                   ; load byte from the high bitplane
-	asl                            ; shift the high bit into carry
-	sta Tile + 1                   ; save the shifted byte
-	lda #$00                       ; clear A
-	rol                            ; rotate carry into A, A now has the value from the high bitplane
-	asl                            ; shift it to its proper position
-	ora PixelValue                 ; combine it with the value from the low bitplane, A now has the 2bpp value
-	sta PixelValue                 ; save that to memory
-	stz PixelValue + 1             ; this needs to be zeroed because A will be 16-bit when it's read
-
-	rep #$20                       ; set A to 16-bit
-	lda TilePaletteIndex           ; get tile palette index
-	ora PixelValue                 ; now we have the actual palette index (this is where we do the 16-bit read)
-	tax                            ; store it in X
-	sep #$20                       ; set A to 8-bit
-	lda OverworldTilePaletteMap, X ; get the actual pixel value
-	sta VMDATAH                    ; store the pixel to VRAM
-
-	dey
-	bne PixelLoop                  ; loop to process 8 bits from each bitplane, one row of pixels
-
-	plx                            ; get tile index back
-	inx                            ; advance to the next byte
-	rep #$20                       ; set A to 16-bit
-	txa
-	and #$0007                     ; get the lower 3 bits of the tile index
-	bne :+                         ; if it's divisible by 8...
-	txa                            ; get the original value back
-	clc
-	adc #$08                       ; skip 8 bytes (because we already read them, they were the high bitplane)
-	tax
-	sep #$20                       ; set A to 8-bit
-:
-	cpx #$0230                     ; length of tile data
-	bne TileLoop
-
+	lda #<VMDATAL               ; write to VRAM
+	sta DMA0ADDB
+	ldx #OverworldChr
+	stx DMA0ADDAL               ; read from overworld CHR data
+	stz DMA0ADDAH
+	ldx #$4000                  ; write 16 KB (64 bytes * 256 characters)
+	stx DMA0AMTL
+	stz DMA0PARAM               ; configure DMA0 for A->B, inc A address, 1 byte to 1 register
+	lda #$01                    ; DMA0 channel
+	sta MDMAEN                  ; enable
 	rts
 .endproc
 
@@ -339,7 +228,7 @@ Loop:
 	lda OverworldPalette, X ; get a byte of palette data
 	sta CGDATA              ; write it to CGRAM
 	inx
-	cpx #$005C              ; length of palette data
+	cpx #$0020              ; length of palette data
 	bne Loop
 
 	rts

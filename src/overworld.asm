@@ -231,6 +231,9 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	lda #$0000      ; clear the high byte
 	sep #$20        ; set A to 8-bit
 	rep #$10        ; set X,Y to 16-bit
+	lda #BANK_MAIN  ; set data bank to main
+	pha
+	plb
 
 	stz CGADD       ; start at CGRAM address 0
 	ldx #$0000

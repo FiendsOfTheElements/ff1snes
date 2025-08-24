@@ -76,6 +76,10 @@ void RipOverworldMap()
 	var mapData = new byte[0x4000];
 	readStream.Position = 0x4010; // Overworld map data starts at the beginning of bank 01
 	readStream.Read(mapData, 0, mapData.Length); // Read the entire map, including the pointers
+	for (int i = 1; i < 0x0200; i+=2) // we need to fix the pointers
+	{
+		mapData[i] &= 0x7F; // these pointers are relative to 0x8000, but we want them to be zero-based
+	}
 	writeStream.Write(mapData, 0, mapData.Length); // Write the map to file
 
 	readStream.Close();

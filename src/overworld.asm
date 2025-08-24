@@ -136,8 +136,9 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	; themselves are RLE compressed.  There are 128 possible tiles, so the lower 7 bits
 	; represent the tile that appears next.  If the MSB is not set, then the byte simply
 	; represents one tile.  If the MSB is set, then the following byte is the number of
-	; times to repeat the tile -- a "repeat" value of 1 means the tile appears twice.
-	; Rows are terminated by $FF.
+	; times the tile should appear.  A value of 0 means the tile appears 256 times, and
+	; takes up the entire row.  Rows are terminated by $FF, even if the whole row is the
+	; same tile.
 	;
 	; The value in the Y register is the row we want to decompress.
 	; We will decompress it into the (Y mod 64)th row of uncompressed map data.
@@ -171,7 +172,7 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 :
 	pha                        ; remember the tile
 	cmp #$80                   ; test the MSB
-	bcc :+
+	bcs :+
                                ; if we're here, just one tile
 	lda #OverworldMapBank      ; set data bank to overworld destination
 	pha
@@ -192,11 +193,12 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	pha
 	plb
 	pla                        ; get the tile back
+	and #$7f                   ; clear the repeat flag
 @LoopRepeat:
 	sta OverworldMap, Y        ; store it
 	iny                        ; bump it
 	dex                        ; loop it
-	bpl @LoopRepeat
+	bne @LoopRepeat
 	ldx TempSrc                ; restore where we were reading from
 	jmp @Loop
 .endproc

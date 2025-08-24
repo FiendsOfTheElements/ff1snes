@@ -6,10 +6,10 @@ RipOverworldMap();
 void RipOverworldCharacters()
 {
 	using var readStream = File.Open("ff1.nes", FileMode.Open, FileAccess.Read);
-	using var writeStream = File.Open("overworld-chr.8bpp", FileMode.Create, FileAccess.Write);
+	using var writeStream = File.Open("overworld-chr.m7", FileMode.Create, FileAccess.Write);
 
 	var tileData2bpp = new byte[0x10]; // one 2bpp tile is 16 bytes
-	var tileData8bpp = new byte[0x40]; // one 4bpp tile is 64 bytes
+	var tileData8bpp = new byte[0x40]; // one 8bpp tile is 64 bytes
 	readStream.Position = 0x8010; // Overworld character data starts at the beginning of bank 02
 	for (int i = 0; i < 0x100; i++) // 256 tiles
 	{

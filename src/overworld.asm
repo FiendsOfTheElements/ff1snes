@@ -22,7 +22,7 @@ CompressedOverworld:
 .segment "CODE"
 
 ; for now this can live in the code segment, but we'll probably move it.
-OverworldChr:             .incbin "graphics/overworld-chr.8bpp"
+OverworldChr:             .incbin "graphics/overworld-chr.m7"
 OverworldPalette:
 	COLOR  0,  0,  0
 	COLOR  0, 24,  0
@@ -64,7 +64,7 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	sta INIDISP
 	stz NMITIMEN            ; disable NMI
 
-	;jsr LoadOverworldMapData
+	jsr LoadOverworldMapData
 	jsr LoadOverworldCharacters
 	jsr LoadOverworldPalette
 
@@ -106,8 +106,13 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	; "slot" of the actual row mod 64, so as you scroll up and down, the rows behind you
 	; get cycled out for rows in front of you.
 	TempMaxY = $00             ; Keep track of the maximum Y position
-	sep #$30                   ; A,X,Y to 8-bit.  We'll wrap around the world correctly.
+	rep #$20                   ; A to 16-bit
 	lda MAPPOSY				   ; get the player's Y position
+	lsr                        ; divide by 16 to get the tile position
+	lsr
+	lsr
+	lsr
+	sep #$30                   ; A,X,Y to 8-bit.  We'll wrap around the world correctly.
 	clc
 	adc #$1E                   ; max Y position is 30 rows higher (farther down)
 	sta TempMaxY
@@ -138,7 +143,7 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	; We will decompress it into the (Y mod 64)th row of uncompressed map data.
 	TempSrc = $02              ; Keep track of where we're reading from
 	sep #$20                   ; Set A to 8-bit
-	lda BANK_OVERWORLD         ; Set data bank to overworld source
+	lda #BANK_OVERWORLD        ; Set data bank to overworld source
 	pha
 	plb
 	rep #$30                   ; Set A,X,Y to 16-bit
@@ -155,7 +160,7 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 
 @Loop:
 	sep #$20                   ; set A to 8-bit
-	lda BANK_OVERWORLD         ; Set data bank to overworld source
+	lda #BANK_OVERWORLD        ; Set data bank to overworld source
 	pha
 	plb
 	lda CompressedOverworld, X
@@ -168,7 +173,7 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	cmp #$80                   ; test the MSB
 	bcc :+
                                ; if we're here, just one tile
-	lda OverworldMapBank       ; set data bank to overworld destination
+	lda #OverworldMapBank      ; set data bank to overworld destination
 	pha
 	plb
 	pla                        ; retrieve the tile
@@ -183,7 +188,7 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	and #$00ff                 ; we only want one byte
 	tax                        ; X will count down
 	sep #$20                   ; A back to 8-bit
-	lda OverworldMapBank       ; set data bank to overworld destination
+	lda #OverworldMapBank      ; set data bank to overworld destination
 	pha
 	plb
 	pla                        ; get the tile back
@@ -206,7 +211,7 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	sta VMAINC
 	ldx #$0000
 	stx VMADDL                  ; start at VRAM address 0
-	lda #<VMDATAH               ; write to VRAM
+	lda #<VMDATAH               ; write to VRAM high register (Mode 7 graphics)
 	sta DMA0ADDB
 	ldx #OverworldChr
 	stx DMA0ADDAL               ; read from overworld CHR data

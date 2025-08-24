@@ -7,7 +7,7 @@ ff1snes.smc: $(OBJ)
 
 rip:
 	dotnet run --project utils/ff1ripper
-	mv *.8bpp assets/graphics
+	mv *.m7 assets/graphics
 	mv *.bin assets/data
 
 obj/%.o: src/%.asm $(INC) rip

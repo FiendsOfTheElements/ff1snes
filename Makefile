@@ -2,12 +2,12 @@ SRC = $(wildcard src/*.asm)
 OBJ = $(patsubst src/%.asm, obj/%.o, $(SRC))
 INC = $(wildcard includes/*.inc)
 
-demo.smc: $(OBJ)
+ff1snes.smc: $(OBJ)
 	ld65 -C memory-map.cfg $(OBJ) -o ff1snes.smc
 
 rip:
 	dotnet run --project utils/ff1ripper
-	mv *.4bpp assets/graphics
+	mv *.8bpp assets/graphics
 	mv *.bin assets/data
 
 obj/%.o: src/%.asm $(INC) rip
@@ -18,3 +18,4 @@ clean:
 	rm obj/*
 	rm assets/data/*
 	rm assets/graphics/*
+	rm ff1snes.smc

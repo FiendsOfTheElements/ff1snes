@@ -22,24 +22,24 @@ CompressedOverworld:
 .segment "CODE"
 
 ; for now this can live in the code segment, but we'll probably move it.
-OverworldChr:             .incbin "graphics/overworld-chr.4bpp"
+OverworldChr:             .incbin "graphics/overworld-chr.8bpp"
 OverworldPalette:
 	COLOR  0,  0,  0
-	COLOR 24,  0,  0
+	COLOR  0, 24,  0
 	COLOR 15, 15, 15
 	COLOR 31, 31, 31
 	COLOR  0,  0,  0
-	COLOR 24,  0,  0
+	COLOR  0, 24,  0
 	COLOR 31, 15,  0
 	COLOR 31, 31, 15
 	COLOR  0,  0,  0
-	COLOR 24,  0,  0
+	COLOR  0, 24,  0
 	COLOR 24, 24, 31
 	COLOR 10, 10, 31
 	COLOR  0,  0,  0
-	COLOR 24,  0,  0
+	COLOR  0, 24,  0
 	COLOR 15, 31, 15
-	COLOR 24,  0,  0
+	COLOR  0, 24,  0
 
 OverworldTilemaps:        .incbin "data/overworld-tilemaps.bin"
 OverworldTilePaletteMaps: .incbin "data/overworld-tile-palette-maps.bin"
@@ -64,7 +64,7 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	sta INIDISP
 	stz NMITIMEN            ; disable NMI
 
-	jsr LoadOverworldMapData
+	;jsr LoadOverworldMapData
 	jsr LoadOverworldCharacters
 	jsr LoadOverworldPalette
 
@@ -188,7 +188,7 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	plb
 	pla                        ; get the tile back
 @LoopRepeat:
-	sta OverworldMap, X        ; store it
+	sta OverworldMap, Y        ; store it
 	iny                        ; bump it
 	dex                        ; loop it
 	bpl @LoopRepeat
@@ -201,9 +201,12 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	; All we need to do is shove them into VRAM starting at address 0.
 	sep #$20                    ; A to 8-bit
 	rep #$10                    ; X,Y to 16-bit
+	stz MDMAEN                  ; reset DMA
+	lda #$80                    ; VRAM increment = 1
+	sta VMAINC
 	ldx #$0000
 	stx VMADDL                  ; start at VRAM address 0
-	lda #<VMDATAL               ; write to VRAM
+	lda #<VMDATAH               ; write to VRAM
 	sta DMA0ADDB
 	ldx #OverworldChr
 	stx DMA0ADDAL               ; read from overworld CHR data

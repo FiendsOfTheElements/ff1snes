@@ -6,16 +6,24 @@ RipOverworldMap();
 void RipOverworldCharacters()
 {
 	using var readStream = File.Open("ff1.nes", FileMode.Open, FileAccess.Read);
-	using var writeStream = File.Open("overworld-chr.4bpp", FileMode.Create, FileAccess.Write);
+	using var writeStream = File.Open("overworld-chr.8bpp", FileMode.Create, FileAccess.Write);
 
-	// Because of how bitplanes work, if we read a 2bpp character into the space for a 4bpp character,
-	// the remaining bitplanes will just be zeroed out, so it will be a valid 4bpp character.
-	var tileData4bpp = new byte[0x20]; // one 4bpp tile is 32 bytes
-	readStream.Position = 0x8000; // Overworld character data starts at the beginning of bank 02
+	var tileData2bpp = new byte[0x10]; // one 2bpp tile is 16 bytes
+	var tileData8bpp = new byte[0x40]; // one 4bpp tile is 64 bytes
+	readStream.Position = 0x8010; // Overworld character data starts at the beginning of bank 02
 	for (int i = 0; i < 0x100; i++) // 256 tiles
 	{
-		readStream.Read(tileData4bpp, 0, 0x10); // Read one 2bpp character (16 bytes)
-		writeStream.Write(tileData4bpp, 0, 0x20); // Write one 4bpp character (32 bytes)
+		readStream.Read(tileData2bpp, 0, 0x10); // Read one 2bpp character (16 bytes)
+		for (int y = 0; y < 8; y++) // 8 rows of pixels
+		{
+			for (int x = 0; x < 8; x++) // 8 pixels per row
+			{
+				var lowBit = tileData2bpp[y] >> (7 - x) & 1;
+				var highBit = tileData2bpp[y + 8] >> (7 - x) & 1;
+				tileData8bpp[y * 8 + x] = (byte)((highBit << 1) | lowBit);
+			}
+		}
+		writeStream.Write(tileData8bpp, 0, 0x40); // Write one 8bpp character (64 bytes)
 	}
 
 	readStream.Close();
@@ -30,7 +38,7 @@ void RipOverworldTilemaps()
 	// There are 128 tiles.  The tilemap stores the upper-left character of each tile, then the upper-right, lower-left, and lower-right.
 	// A character index is one byte, so the whole tilemap is 512 bytes.
 	var tilemapData = new byte[0x200];
-	readStream.Position = 0x0100; // Overworld tilemap data starts at 0x0100 in bank 00
+	readStream.Position = 0x0110; // Overworld tilemap data starts at 0x0100 in bank 00
 	readStream.Read(tilemapData, 0, tilemapData.Length); // Read the entire tilemap
 	writeStream.Write(tilemapData, 0, tilemapData.Length); // Write the tilemap to file
 
@@ -46,7 +54,7 @@ void RipOverworldTilePaletteMaps()
 	// There are 128 tiles, each made of 4 characters, and each character has a palette.
 	// A palette index is only 2 bits, so this data fits into 128 bytes.
 	var paletteMapData = new byte[0x80];
-	readStream.Position = 0x0300; // Overworld pallette map data starts at 0x0300 in bank 00
+	readStream.Position = 0x0310; // Overworld pallette map data starts at 0x0300 in bank 00
 	readStream.Read(paletteMapData, 0, paletteMapData.Length); // Read the entire palette map
 	writeStream.Write(paletteMapData, 0, paletteMapData.Length); // Write the palette map to file
 
@@ -66,7 +74,7 @@ void RipOverworldMap()
 	// There is some unrelated data at the end of this bank, about 160 bytes.
 	// Dunno what it is.
 	var mapData = new byte[0x4000];
-	readStream.Position = 0x4000; // Overworld map data starts at the beginning of bank 01
+	readStream.Position = 0x4010; // Overworld map data starts at the beginning of bank 01
 	readStream.Read(mapData, 0, mapData.Length); // Read the entire map, including the pointers
 	writeStream.Write(mapData, 0, mapData.Length); // Write the map to file
 

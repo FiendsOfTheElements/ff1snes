@@ -4,7 +4,7 @@ A port of Final Fantasy to the SNES.  Written from the ground up: No code was co
 
 ## Building
 To build the ROM, you'll need cc65 and make.  You'll also need an FF1 ROM, which you can place in the root directory and name `ff1.nes`.
-The necessary data will be automatically extracted and compiled into the SNES ROM.
+You will also need .NET 10 to extract data from the source ROM.  The necessary data will be automatically extracted and compiled into the SNES ROM.
 
 Just run `make` from the command line.
 

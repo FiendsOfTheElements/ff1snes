@@ -16,13 +16,12 @@
 .import Cosine
 
 .segment "OVERWORLD"
-CompressedOverworld:
-.incbin "data/overworld-map.bin"
+CompressedOverworld: .incbin "data/overworld-map.bin"
 
 .segment "CODE"
 
-; for now this can live in the code segment, but we'll probably move it.
-OverworldChr:             .incbin "graphics/overworld-chr.m7"
+OverworldChr:        .incbin "graphics/overworld-chr.m7"
+
 OverworldPalette:
 	COLOR  0,  0,  0
 	COLOR  0, 24,  0
@@ -41,8 +40,7 @@ OverworldPalette:
 	COLOR 15, 31, 15
 	COLOR  0, 24,  0
 
-OverworldTilemaps:        .incbin "data/overworld-tilemaps.bin"
-OverworldTilePaletteMaps: .incbin "data/overworld-tile-palette-maps.bin"
+OverworldTilemaps: .incbin "data/overworld-tilemaps.bin"
 
 OverworldMap = $4000 ; store the decompressed overworld map from $7E:4000-7E:7FFF (64 rows x 256 columns, 4096 bytes)
 OverworldMapBank = $7E
@@ -64,9 +62,10 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	sta INIDISP
 	stz NMITIMEN            ; disable NMI
 
-	jsr LoadOverworldMapData
 	jsr LoadOverworldCharacters
 	jsr LoadOverworldPalette
+	jsr LoadOverworldMapData
+	jsr LoadOverworldTilemaps
 
 	stz MAPANGLE            ; initial rotation (none)
 	lda #$0040              ; initial zoom (1x)
@@ -244,6 +243,10 @@ Loop:
 	cpx #$0020              ; length of palette data
 	bne Loop
 
+	rts
+.endproc
+
+.proc LoadOverworldTilemaps
 	rts
 .endproc
 

@@ -1,10 +1,22 @@
 ﻿RipOverworldCharacters();
-RipOverworldTilemaps();
-RipOverworldTilePaletteMaps();
 RipOverworldMap();
 
 void RipOverworldCharacters()
 {
+	var tilemaps = RipOverworldTilemaps();
+	var paletteMaps = RipOverworldTilePaletteMaps();
+	// AFAIK, no tiles are reused with different palettes.  So we'll just store "the" palette
+	// for each tile.  We'll shift it up by 2 bits so we can OR it with the tile data to get
+	// a 4bpp color.
+	var tilePalettes = new byte[0x100];
+	for (int i = 0; i < 0x80; i++)
+	{
+		tilePalettes[tilemaps[i]]         = (byte)((paletteMaps[i] << 2) & 0x0C);
+		tilePalettes[tilemaps[i + 0x80]]  = (byte)(paletteMaps[i] & 0x0C);
+		tilePalettes[tilemaps[i + 0x100]] = (byte)((paletteMaps[i] >> 2) & 0x0C);
+		tilePalettes[tilemaps[i + 0x180]] = (byte)((paletteMaps[i] >> 4) & 0x0C);
+	}
+
 	using var readStream = File.Open("ff1.nes", FileMode.Open, FileAccess.Read);
 	using var writeStream = File.Open("overworld-chr.m7", FileMode.Create, FileAccess.Write);
 
@@ -13,6 +25,7 @@ void RipOverworldCharacters()
 	readStream.Position = 0x8010; // Overworld character data starts at the beginning of bank 02
 	for (int i = 0; i < 0x100; i++) // 256 tiles
 	{
+		var palette = tilePalettes[i];
 		readStream.Read(tileData2bpp, 0, 0x10); // Read one 2bpp character (16 bytes)
 		for (int y = 0; y < 8; y++) // 8 rows of pixels
 		{
@@ -20,7 +33,7 @@ void RipOverworldCharacters()
 			{
 				var lowBit = tileData2bpp[y] >> (7 - x) & 1;
 				var highBit = tileData2bpp[y + 8] >> (7 - x) & 1;
-				tileData8bpp[y * 8 + x] = (byte)((highBit << 1) | lowBit);
+				tileData8bpp[y * 8 + x] = (byte)((highBit << 1) | lowBit | palette);
 			}
 		}
 		writeStream.Write(tileData8bpp, 0, 0x40); // Write one 8bpp character (64 bytes)
@@ -30,7 +43,7 @@ void RipOverworldCharacters()
 	writeStream.Close();
 }
 
-void RipOverworldTilemaps()
+byte[] RipOverworldTilemaps()
 {
 	using var readStream = File.Open("ff1.nes", FileMode.Open, FileAccess.Read);
 	using var writeStream = File.Open("overworld-tilemaps.bin", FileMode.Create, FileAccess.Write);
@@ -44,22 +57,25 @@ void RipOverworldTilemaps()
 
 	readStream.Close();
 	writeStream.Close();
+
+	return tilemapData;
 }
 
-void RipOverworldTilePaletteMaps()
+byte[] RipOverworldTilePaletteMaps()
 {
 	using var readStream = File.Open("ff1.nes", FileMode.Open, FileAccess.Read);
-	using var writeStream = File.Open("overworld-tile-palette-maps.bin", FileMode.Create, FileAccess.Write);
 
 	// There are 128 tiles, each made of 4 characters, and each character has a palette.
 	// A palette index is only 2 bits, so this data fits into 128 bytes.
 	var paletteMapData = new byte[0x80];
-	readStream.Position = 0x0310; // Overworld pallette map data starts at 0x0300 in bank 00
+	readStream.Position = 0x0310; // Overworld palette map data starts at 0x0300 in bank 00
 	readStream.Read(paletteMapData, 0, paletteMapData.Length); // Read the entire palette map
-	writeStream.Write(paletteMapData, 0, paletteMapData.Length); // Write the palette map to file
-
 	readStream.Close();
-	writeStream.Close();
+
+	// We don't need to write these, because we'll just apply each palette to the tile data
+	// to make them 4bpp.
+
+	return paletteMapData;
 }
 
 void RipOverworldMap()

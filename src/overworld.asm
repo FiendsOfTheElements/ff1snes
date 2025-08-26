@@ -42,8 +42,9 @@ OverworldPalette:
 
 OverworldTilemaps: .incbin "data/overworld-tilemaps.bin"
 
-OverworldMap = $4000 ; store the decompressed overworld map from $7E:4000-7E:7FFF (64 rows x 256 columns, 4096 bytes)
 OverworldMapBank = $7E
+OverworldMap  = $4000 ; store the decompressed overworld map from $7E:4000-7E:7FFF (64 rows x 256 columns, 4096 bytes)
+TileMapBuffer = $1800 ; this is a buffer from which a row or column of tiles will be DMA'd into VRAM, 256 bytes
 
 .export MAPPOSX  = $1000
 .export MAPPOSY  = $1002
@@ -65,7 +66,6 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	jsr LoadOverworldCharacters
 	jsr LoadOverworldPalette
 	jsr LoadOverworldMapData
-	jsr LoadOverworldTilemaps
 
 	stz MAPANGLE            ; initial rotation (none)
 	lda #$0040              ; initial zoom (1x)
@@ -74,8 +74,7 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	sep #$20                ; set A to 8-bit
 	lda #$07
 	sta BGMODE
-	lda #$80
-	sta M7SEL               ; use CGRAM color 0 off the edge, no flipping
+	stz M7SEL               ; wrap tiles, no flipping
 	stz M7A
 	lda #$01
 	sta M7A                 ; initialize Mode 7 matrix with identity
@@ -124,11 +123,88 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	jsr DecompressMapRow       ; Decompress one row
 	plp                        ; Restore the bitness before
 	ply                        ; restoring Y, otherwise we pop the wrong number of bytes
+	jsr CopyMapRowToBuffer     ; Copy the decompressed row to the tile map buffer
 	iny
 	cpy TempMaxY
 	bne @Loop
 	rts
 .endproc
+
+.proc CopyMapRowToBuffer
+	; The value in the Y register is the row we want to copy.
+	; We will copy the (Y mod 64)th row of uncompressed map data into the tile map buffer.
+	; We need to do a lot of math, so we'll be using variables here instead of juggling
+	; registers constantly.
+	TempRowPointer    = $02
+	TempBufferPointer = $04
+	TempCounter       = $06
+	TempRowPos        = $08
+	phy
+	php
+	rep #$20                   ; A 16-bit
+	tya
+	and #$3f                   ; row mod 64
+	xba                        ; times the row length (256)
+	sta TempRowPointer
+	lda MAPPOSX                ; get the X position, divide by 16 to get the tile position
+	lsr
+	lsr
+	lsr
+	lsr
+	clc
+	sbc #$001f                 ; subtract 31 to get the leftmost tile to copy
+	and #$00ff                 ; if we underflowed, we just want to wrap
+	sta BufferPos              ; this is our index into the buffer
+	clc
+	adc TempRowPointer         ; add the row pointer, now we have the index of the leftmost tile
+	sta TempBufferPointer      ; save the buffer pointer
+	stz TempCounter            ; loop variable
+@Loop:
+	rep #$20                         ; A to 16-bit
+	lda TempBufferPointer            ; We need to calculate the tile index in the decompressed map.
+	and #$00ff                       ; just the x-coordinate
+	adc TempCounter                  ; This is from the start position, plus our loop counter,
+	and #$00ff                       ; and we have to wrap around to stay in the same row.
+	sta TempRowPos                   ; hang onto this for later
+	lda TempBufferPointer            ; now get the buffer pointer again
+	and #$ff00                       ; just the row
+	clc
+	adc TempRowPos                   ; add the row position
+	tax                              ; put it in X
+	lda OverworldMap, X              ; get the tile
+	and #$00ff                       ; just one byte
+	tay                              ; put it in Y
+	sep #$20                         ; A to 8-bit
+	lda OverworldTilemaps, Y         ; get the upper-left character
+	pha                              ; save it
+	lda OverworldTilemaps + 0x80, Y  ; get the upper-right character
+	pha                              ; save it
+	lda OverworldTilemaps + 0x100, Y ; get the lower-left character
+	pha                              ; save it
+	lda OverworldTilemaps + 0x180, Y ; get the lower-right character
+	pha                              ; save it
+	rep #$20                         ; A back to 16-bit
+	lda TempRowPos                   ; what's our position in the row
+	and #$3f                         ; mod 64
+	asl                              ; times 2, this is our index into the buffer
+	tay                              ; put it in Y
+	sep #$20                         ; A back to 8-bit
+	pla                              ; grab the lower-right character
+	sta TileMapBuffer + 0x81, Y      ; store it to the buffer
+	pla                              ; grab the lower-left character
+	sta TileMapBuffer + 0x80, Y      ; store it to the buffer
+	pla                              ; grab the upper-right character
+	sta TileMapBuffer, Y             ; store it to the buffer
+	pla                              ; grab the upper-left character
+	sta TileMapBuffer + 1, Y         ; store it to the buffer
+	inc TempCounter
+	lda TempCounter
+	cmp #$40                         ; do this 64 times
+	bne @Loop
+
+	plp
+	ply
+	rts
 
 .proc DecompressMapRow
 	; Map rows are referenced by a pointer table, 2 bytes per row, and the rows
@@ -246,10 +322,6 @@ Loop:
 	rts
 .endproc
 
-.proc LoadOverworldTilemaps
-	rts
-.endproc
-
 .proc DoOverworldMovement
 	rep #$20                            ; set A to 16-bit
 	; check the dpad, if any of the directional buttons are pressed,
@@ -338,6 +410,10 @@ Done:
 
 .proc SetMode7Matrix
 	sep #$20          ; set A to 8-bit
+	lda #BANK_MAIN    ; set data bank to main (where the trig tables are)
+	pha
+	plb
+
 	lda MAPPOSX
 	sta M7X
 	lda MAPPOSX + 1

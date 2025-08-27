@@ -103,27 +103,24 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	; at a time, centered around the player's Y coordinate.  Each map row will go into the
 	; "slot" of the actual row mod 64, so as you scroll up and down, the rows behind you
 	; get cycled out for rows in front of you.
-	TempMaxY = $00             ; Keep track of the maximum Y position
-	rep #$20                   ; A to 16-bit
-	lda MAPPOSY				   ; get the player's Y position
-	lsr                        ; divide by 16 to get the tile position
+	TempMaxY = $00              ; Keep track of the maximum Y position
+	rep #$20                    ; A to 16-bit
+	lda MAPPOSY				    ; get the player's Y position
+	lsr                         ; divide by 16 to get the tile position
 	lsr
 	lsr
 	lsr
-	sep #$30                   ; A,X,Y to 8-bit.  We'll wrap around the world correctly.
+	sep #$30                    ; A,X,Y to 8-bit.  We'll wrap around the world correctly.
 	clc
-	adc #$1E                   ; max Y position is 30 rows higher (farther down)
+	adc #$1E                    ; max Y position is 30 rows higher (farther down)
 	sta TempMaxY
 	clc
-	sbc #$3F                   ; min Y position is 63 rows below max.  We go farther up than
-	tay                        ; down because we can see farther up due to the perspective.
+	sbc #$3F                    ; min Y position is 63 rows below max.  We go farther up than
+	tay                         ; down because we can see farther up due to the perspective.
 @Loop:
-	phy                        ; Save Y which will definitely be overwritten by decoding
-	php                        ; Save the bitness of the registers
-	jsr DecompressMapRow       ; Decompress one row
-	plp                        ; Restore the bitness before
-	ply                        ; restoring Y, otherwise we pop the wrong number of bytes
-	jsr CopyMapRowToBuffer     ; Copy the decompressed row to the tile map buffer
+	jsr DecompressMapRow        ; Decompress one row
+	jsr CopyMapRowToBuffer      ; Copy the decompressed row to the tile map buffer
+	jsr CopyTileMapBufferToVRAM ; Put it in VRAM
 	iny
 	cpy TempMaxY
 	bne @Loop
@@ -154,11 +151,15 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	clc
 	sbc #$001f                 ; subtract 31 to get the leftmost tile to copy
 	and #$00ff                 ; if we underflowed, we just want to wrap
-	sta BufferPos              ; this is our index into the buffer
 	clc
 	adc TempRowPointer         ; add the row pointer, now we have the index of the leftmost tile
 	sta TempBufferPointer      ; save the buffer pointer
 	stz TempCounter            ; loop variable
+	rep #$10                   ; X,Y to 16-bit
+	sep #$20                   ; A to 8-bit
+	lda #OverworldMapBank      ; set data bank for the decompressed map
+	pha
+	plb
 @Loop:
 	rep #$20                         ; A to 16-bit
 	lda TempBufferPointer            ; We need to calculate the tile index in the decompressed map.
@@ -177,11 +178,11 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	sep #$20                         ; A to 8-bit
 	lda OverworldTilemaps, Y         ; get the upper-left character
 	pha                              ; save it
-	lda OverworldTilemaps + 0x80, Y  ; get the upper-right character
+	lda OverworldTilemaps + $80, Y   ; get the upper-right character
 	pha                              ; save it
-	lda OverworldTilemaps + 0x100, Y ; get the lower-left character
+	lda OverworldTilemaps + $100, Y  ; get the lower-left character
 	pha                              ; save it
-	lda OverworldTilemaps + 0x180, Y ; get the lower-right character
+	lda OverworldTilemaps + $180, Y  ; get the lower-right character
 	pha                              ; save it
 	rep #$20                         ; A back to 16-bit
 	lda TempRowPos                   ; what's our position in the row
@@ -190,21 +191,56 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	tay                              ; put it in Y
 	sep #$20                         ; A back to 8-bit
 	pla                              ; grab the lower-right character
-	sta TileMapBuffer + 0x81, Y      ; store it to the buffer
+	sta TileMapBuffer + $81, Y       ; store it to the buffer
 	pla                              ; grab the lower-left character
-	sta TileMapBuffer + 0x80, Y      ; store it to the buffer
+	sta TileMapBuffer + $80, Y       ; store it to the buffer
 	pla                              ; grab the upper-right character
-	sta TileMapBuffer, Y             ; store it to the buffer
-	pla                              ; grab the upper-left character
 	sta TileMapBuffer + 1, Y         ; store it to the buffer
+	pla                              ; grab the upper-left character
+	sta TileMapBuffer, Y             ; store it to the buffer
 	inc TempCounter
 	lda TempCounter
 	cmp #$40                         ; do this 64 times
 	bne @Loop
 
+	lda #BANK_MAIN                   ; back to main bank
+	pha
+	plb
 	plp
 	ply
 	rts
+.endproc
+
+.proc CopyTileMapBufferToVRAM
+	; We're going to copy 64 map tiles into VRAM.  The buffer is laid out so that the
+	; tiles are aligned with the Mode 7 scroll, so there's no offsetting necessary
+	; here, and the two rows of tilemaps are contiguous in memory.  So one DMA shot
+	; straight into VRAM, 256 bytes.
+	; The Y register holds the map row to copy into.
+	php
+	rep #$20                    ; A to 16-bit
+	tya
+	and #$003f                  ; row mod 64
+	xba                         ; times 256
+	sta VMADDL                  ; is the VRAM address
+	rep #$10                    ; X,Y to 16-bit
+	sep #$20                    ; A to 8-bit
+	stz MDMAEN                  ; reset DMA
+	stz VMAINC                  ; VRAM increment on write to VMDATAL
+	lda #<VMDATAL               ; write to VRAM low register (Mode 7 tilemaps)
+	sta DMA0ADDB
+	ldx #TileMapBuffer
+	stx DMA0ADDAL               ; read from the tilemap buffer
+	lda #OverworldMapBank       ; which is in this bank
+	sta DMA0ADDAH
+	ldx #$0100                  ; write 256 bytes
+	stx DMA0AMTL
+	stz DMA0PARAM               ; configure DMA0 for A->B, inc A address, 1 byte to 1 register
+	lda #$01                    ; DMA0 channel
+	sta MDMAEN                  ; enable
+	plp
+	rts
+.endproc
 
 .proc DecompressMapRow
 	; Map rows are referenced by a pointer table, 2 bytes per row, and the rows
@@ -218,6 +254,8 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	; The value in the Y register is the row we want to decompress.
 	; We will decompress it into the (Y mod 64)th row of uncompressed map data.
 	TempSrc = $02              ; Keep track of where we're reading from
+	phy                        ; Save Y which will definitely be overwritten by decoding
+	php                        ; Save the bitness of the registers
 	sep #$20                   ; Set A to 8-bit
 	lda #BANK_OVERWORLD        ; Set data bank to overworld source
 	pha
@@ -243,6 +281,8 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	inx
 	cmp #$ff                   ; are we done?
 	bne :+
+	plp                        ; Restore the bitness before
+	ply                        ; restoring Y, otherwise we pop the wrong number of bytes
 	rts
 :
 	pha                        ; remember the tile
@@ -284,7 +324,7 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	sep #$20                    ; A to 8-bit
 	rep #$10                    ; X,Y to 16-bit
 	stz MDMAEN                  ; reset DMA
-	lda #$80                    ; VRAM increment = 1
+	lda #$80                    ; VRAM increment on write to VMDATAH
 	sta VMAINC
 	ldx #$0000
 	stx VMADDL                  ; start at VRAM address 0

@@ -157,10 +157,10 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	stz TempCounter            ; loop variable
 	rep #$10                   ; X,Y to 16-bit
 	sep #$20                   ; A to 8-bit
+@Loop:
 	lda #OverworldMapBank      ; set data bank for the decompressed map
 	pha
 	plb
-@Loop:
 	rep #$20                         ; A to 16-bit
 	lda TempBufferPointer            ; We need to calculate the tile index in the decompressed map.
 	and #$00ff                       ; just the x-coordinate
@@ -176,6 +176,9 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	and #$00ff                       ; just one byte
 	tay                              ; put it in Y
 	sep #$20                         ; A to 8-bit
+	lda #BANK_MAIN                   ; set data bank for the tilemaps
+	pha
+	plb
 	lda OverworldTilemaps, Y         ; get the upper-left character
 	pha                              ; save it
 	lda OverworldTilemaps + $80, Y   ; get the upper-right character

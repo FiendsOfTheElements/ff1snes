@@ -97,6 +97,51 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	rts
 .endproc
 
+.proc LoadOverworldCharacters
+	; There are 256 8x8 characters that make up the graphics for the overworld.
+	; All we need to do is shove them into VRAM starting at address 0.
+	sep #$20                    ; A to 8-bit
+	rep #$10                    ; X,Y to 16-bit
+	stz MDMAEN                  ; reset DMA
+	lda #$80                    ; VRAM increment on write to VMDATAH
+	sta VMAINC
+	ldx #$0000
+	stx VMADDL                  ; start at VRAM address 0
+	lda #<VMDATAH               ; write to VRAM high register (Mode 7 graphics)
+	sta DMA0ADDB
+	ldx #OverworldChr & $ffff   ; not sure how to tell the assembler about OverworldChr address
+	stx DMA0ADDAL               ; read from overworld CHR data
+	lda #BANK_OVERWORLD         ; which is in this bank
+	sta DMA0ADDAH
+	ldx #$4000                  ; write 16 KB (64 bytes * 256 characters)
+	stx DMA0AMTL
+	stz DMA0PARAM               ; configure DMA0 for A->B, inc A address, 1 byte to 1 register
+	lda #$01                    ; DMA0 channel
+	sta MDMAEN                  ; enable
+	rts
+.endproc
+
+.proc LoadOverworldPalette
+	rep #$20        ; set A to 16-bit so we can
+	lda #$0000      ; clear the high byte
+	sep #$20        ; set A to 8-bit
+	rep #$10        ; set X,Y to 16-bit
+	lda #BANK_MAIN  ; set data bank to main
+	pha
+	plb
+
+	stz CGADD       ; start at CGRAM address 0
+	ldx #$0000
+Loop:
+	lda OverworldPalette, X ; get a byte of palette data
+	sta CGDATA              ; write it to CGRAM
+	inx
+	cpx #$0020              ; length of palette data
+	bne Loop
+
+	rts
+.endproc
+
 .proc LoadOverworldMapData
 	; Here we decompress the map data.  The map is 256x256, but we will only load 64 rows
 	; at a time, centered around the player's Y coordinate.  Each map row will go into the
@@ -124,6 +169,82 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	cpy TempMaxY
 	bne @Loop
 	rts
+.endproc
+
+.proc DecompressMapRow
+	; Map rows are referenced by a pointer table, 2 bytes per row, and the rows
+	; themselves are RLE compressed.  There are 128 possible tiles, so the lower 7 bits
+	; represent the tile that appears next.  If the MSB is not set, then the byte simply
+	; represents one tile.  If the MSB is set, then the following byte is the number of
+	; times the tile should appear.  A value of 0 means the tile appears 256 times, and
+	; takes up the entire row.  Rows are terminated by $FF, even if the whole row is the
+	; same tile.
+	;
+	; The value in the Y register is the row we want to decompress.
+	; We will decompress it into the (Y mod 64)th row of uncompressed map data.
+	TempSrc = $02              ; Keep track of where we're reading from
+	phy                        ; Save Y which will definitely be overwritten by decoding
+	php                        ; Save the bitness of the registers
+	sep #$20                   ; Set A to 8-bit
+	lda #BANK_OVERWORLD        ; Set data bank to overworld source
+	pha
+	plb
+	rep #$30                   ; Set A,X,Y to 16-bit
+	phy                        ; remember the actual row
+	tya
+	and #$003f                 ; row mod 64
+	xba                        ; times the row length (256)
+	tay                        ; Y now points to the destination row buffer
+	pla                        ; restore the actual row
+	asl                        ; row# times 2 to get the pointer
+	tax
+	lda CompressedOverworld, X ; get the pointer
+	tax                        ; X now points to the compressed row data
+
+@Loop:
+	sep #$20                   ; set A to 8-bit
+	lda #BANK_OVERWORLD        ; Set data bank to overworld source
+	pha
+	plb
+	lda CompressedOverworld, X
+	inx
+	cmp #$ff                   ; are we done?
+	bne :+
+	plp                        ; Restore the bitness before
+	ply                        ; restoring Y, otherwise we pop the wrong number of bytes
+	rts
+:
+	pha                        ; remember the tile
+	cmp #$80                   ; test the MSB
+	bcs :+
+                               ; if we're here, just one tile
+	lda #OverworldMapBank      ; set data bank to overworld destination
+	pha
+	plb
+	pla                        ; retrieve the tile
+	sta OverworldMap, Y        ; store it
+	iny                        ; bump it
+	jmp @Loop                  ; loop it
+:                              ; if we're here, we repeat the tile
+	rep #$20                   ; set A to 16-bit (because X is 16-bit)
+	lda CompressedOverworld, X ; get the number of repeats
+	inx
+	stx TempSrc                ; remember where we were reading from
+	and #$00ff                 ; we only want one byte
+	tax                        ; X will count down
+	sep #$20                   ; A back to 8-bit
+	lda #OverworldMapBank      ; set data bank to overworld destination
+	pha
+	plb
+	pla                        ; get the tile back
+	and #$7f                   ; clear the repeat flag
+@LoopRepeat:
+	sta OverworldMap, Y        ; store it
+	iny                        ; bump it
+	dex                        ; loop it
+	bne @LoopRepeat
+	ldx TempSrc                ; restore where we were reading from
+	jmp @Loop
 .endproc
 
 .proc CopyMapRowToBuffer
@@ -241,127 +362,6 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	lda #$01                    ; DMA0 channel
 	sta MDMAEN                  ; enable
 	plp
-	rts
-.endproc
-
-.proc DecompressMapRow
-	; Map rows are referenced by a pointer table, 2 bytes per row, and the rows
-	; themselves are RLE compressed.  There are 128 possible tiles, so the lower 7 bits
-	; represent the tile that appears next.  If the MSB is not set, then the byte simply
-	; represents one tile.  If the MSB is set, then the following byte is the number of
-	; times the tile should appear.  A value of 0 means the tile appears 256 times, and
-	; takes up the entire row.  Rows are terminated by $FF, even if the whole row is the
-	; same tile.
-	;
-	; The value in the Y register is the row we want to decompress.
-	; We will decompress it into the (Y mod 64)th row of uncompressed map data.
-	TempSrc = $02              ; Keep track of where we're reading from
-	phy                        ; Save Y which will definitely be overwritten by decoding
-	php                        ; Save the bitness of the registers
-	sep #$20                   ; Set A to 8-bit
-	lda #BANK_OVERWORLD        ; Set data bank to overworld source
-	pha
-	plb
-	rep #$30                   ; Set A,X,Y to 16-bit
-	phy                        ; remember the actual row
-	tya
-	and #$003f                 ; row mod 64
-	xba                        ; times the row length (256)
-	tay                        ; Y now points to the destination row buffer
-	pla                        ; restore the actual row
-	asl                        ; row# times 2 to get the pointer
-	tax
-	lda CompressedOverworld, X ; get the pointer
-	tax                        ; X now points to the compressed row data
-
-@Loop:
-	sep #$20                   ; set A to 8-bit
-	lda #BANK_OVERWORLD        ; Set data bank to overworld source
-	pha
-	plb
-	lda CompressedOverworld, X
-	inx
-	cmp #$ff                   ; are we done?
-	bne :+
-	plp                        ; Restore the bitness before
-	ply                        ; restoring Y, otherwise we pop the wrong number of bytes
-	rts
-:
-	pha                        ; remember the tile
-	cmp #$80                   ; test the MSB
-	bcs :+
-                               ; if we're here, just one tile
-	lda #OverworldMapBank      ; set data bank to overworld destination
-	pha
-	plb
-	pla                        ; retrieve the tile
-	sta OverworldMap, Y        ; store it
-	iny                        ; bump it
-	jmp @Loop                  ; loop it
-:                              ; if we're here, we repeat the tile
-	rep #$20                   ; set A to 16-bit (because X is 16-bit)
-	lda CompressedOverworld, X ; get the number of repeats
-	inx
-	stx TempSrc                ; remember where we were reading from
-	and #$00ff                 ; we only want one byte
-	tax                        ; X will count down
-	sep #$20                   ; A back to 8-bit
-	lda #OverworldMapBank      ; set data bank to overworld destination
-	pha
-	plb
-	pla                        ; get the tile back
-	and #$7f                   ; clear the repeat flag
-@LoopRepeat:
-	sta OverworldMap, Y        ; store it
-	iny                        ; bump it
-	dex                        ; loop it
-	bne @LoopRepeat
-	ldx TempSrc                ; restore where we were reading from
-	jmp @Loop
-.endproc
-
-.proc LoadOverworldCharacters
-	; There are 256 8x8 characters that make up the graphics for the overworld.
-	; All we need to do is shove them into VRAM starting at address 0.
-	sep #$20                    ; A to 8-bit
-	rep #$10                    ; X,Y to 16-bit
-	stz MDMAEN                  ; reset DMA
-	lda #$80                    ; VRAM increment on write to VMDATAH
-	sta VMAINC
-	ldx #$0000
-	stx VMADDL                  ; start at VRAM address 0
-	lda #<VMDATAH               ; write to VRAM high register (Mode 7 graphics)
-	sta DMA0ADDB
-	ldx #OverworldChr & $ffff   ; not sure how to tell the assembler about OverworldChr address
-	stx DMA0ADDAL               ; read from overworld CHR data
-	lda #BANK_OVERWORLD         ; which is in this bank
-	sta DMA0ADDAH
-	ldx #$4000                  ; write 16 KB (64 bytes * 256 characters)
-	stx DMA0AMTL
-	stz DMA0PARAM               ; configure DMA0 for A->B, inc A address, 1 byte to 1 register
-	lda #$01                    ; DMA0 channel
-	sta MDMAEN                  ; enable
-	rts
-.endproc
-
-.proc LoadOverworldPalette
-	rep #$20        ; set A to 16-bit so we can
-	lda #$0000      ; clear the high byte
-	sep #$20        ; set A to 8-bit
-	rep #$10        ; set X,Y to 16-bit
-	lda #BANK_MAIN  ; set data bank to main
-	pha
-	plb
-
-	stz CGADD       ; start at CGRAM address 0
-	ldx #$0000
-Loop:
-	lda OverworldPalette, X ; get a byte of palette data
-	sta CGDATA              ; write it to CGRAM
-	inx
-	cpx #$0020              ; length of palette data
-	bne Loop
-
 	rts
 .endproc
 

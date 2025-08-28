@@ -17,28 +17,27 @@
 
 .segment "OVERWORLD"
 CompressedOverworld: .incbin "data/overworld-map.bin"
+OverworldChr:        .incbin "graphics/overworld-chr.m7"
 
 .segment "CODE"
 
-OverworldChr:        .incbin "graphics/overworld-chr.m7"
-
 OverworldPalette:
 	COLOR  0,  0,  0
-	COLOR  0, 24,  0
-	COLOR 15, 15, 15
+	COLOR  0, 21,  0
+	COLOR 23, 23, 23
 	COLOR 31, 31, 31
 	COLOR  0,  0,  0
-	COLOR  0, 24,  0
-	COLOR 31, 15,  0
-	COLOR 31, 31, 15
+	COLOR  0, 21,  0
+	COLOR 31, 20,  8
+	COLOR 31, 28, 21
 	COLOR  0,  0,  0
-	COLOR  0, 24,  0
-	COLOR 24, 24, 31
-	COLOR 10, 10, 31
+	COLOR  0, 21,  0
+	COLOR 20, 28, 31
+	COLOR  7, 23, 31
 	COLOR  0,  0,  0
-	COLOR  0, 24,  0
-	COLOR 15, 31, 15
-	COLOR  0, 24,  0
+	COLOR  0, 21,  0
+	COLOR 23, 31,  3
+	COLOR  0, 21,  0
 
 OverworldTilemaps: .incbin "data/overworld-tilemaps.bin"
 
@@ -333,9 +332,10 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	stx VMADDL                  ; start at VRAM address 0
 	lda #<VMDATAH               ; write to VRAM high register (Mode 7 graphics)
 	sta DMA0ADDB
-	ldx #OverworldChr
+	ldx #OverworldChr & $ffff   ; not sure how to tell the assembler about OverworldChr address
 	stx DMA0ADDAL               ; read from overworld CHR data
-	stz DMA0ADDAH
+	lda #BANK_OVERWORLD         ; which is in this bank
+	sta DMA0ADDAH
 	ldx #$4000                  ; write 16 KB (64 bytes * 256 characters)
 	stx DMA0AMTL
 	stz DMA0PARAM               ; configure DMA0 for A->B, inc A address, 1 byte to 1 register

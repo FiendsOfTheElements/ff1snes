@@ -1,0 +1,29 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "utils", "utils", "{F904F79D-75D5-4918-E32F-904F3CF671B2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ff1ripper", "utils\ff1ripper\ff1ripper.csproj", "{A7CD6F77-ED15-7AB1-58DE-0FD73F5FD0D0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A7CD6F77-ED15-7AB1-58DE-0FD73F5FD0D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7CD6F77-ED15-7AB1-58DE-0FD73F5FD0D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7CD6F77-ED15-7AB1-58DE-0FD73F5FD0D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7CD6F77-ED15-7AB1-58DE-0FD73F5FD0D0}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A7CD6F77-ED15-7AB1-58DE-0FD73F5FD0D0} = {F904F79D-75D5-4918-E32F-904F3CF671B2}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C8F7CA79-7E6C-4A20-A3A0-C76A4A09BCF6}
+	EndGlobalSection
+EndGlobal

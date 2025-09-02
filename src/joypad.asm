@@ -10,6 +10,8 @@
 
 .include "registers.inc"
 
+.segment "CODE"
+
 .proc GetJoypadInputs
 	sep #$20                            ; set A to 8-bit
 	lda HVBJOY                          ; get joypad status

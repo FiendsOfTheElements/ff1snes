@@ -7,6 +7,8 @@
 
 .include "registers.inc"
 
+.segment "CODE"
+
 SineTable:
 .byte $00,$06,$0C,$12,$19,$1F,$25,$2B
 .byte $31,$38,$3E,$44,$4A,$50,$56,$5C

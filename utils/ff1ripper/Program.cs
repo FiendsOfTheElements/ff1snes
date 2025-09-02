@@ -121,7 +121,7 @@ void RipOverworldSprites()
 	// of animation, facing up or down animates by simply mirroring the bottom two tiles.  We
 	// will store two frames of animation though, because it's simpler and SNES has the VRAM.
 	byte[] classTopPalettes    = [0, 1, 2, 0, 3, 2, 0, 0, 2, 0, 0, 2];
-	byte[] classBottomPalettes = [0, 2, 1, 0, 3, 1, 0, 0, 1, 3, 0, 1];
+	byte[] classBottomPalettes = [0, 2, 1, 0, 3, 1, 0, 0, 1, 0, 3, 1];
 	for (int i = 0; i < 12; i++)
 	{
 		var spriteData4bpp = new byte[0x400]; // 2 rows of SNES sprite data, 32 bytes x 8 sprites x 4 tiles

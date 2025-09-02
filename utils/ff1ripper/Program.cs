@@ -1,5 +1,6 @@
 ﻿RipOverworldCharacters();
 RipOverworldMap();
+RipOverworldSprites();
 
 void RipOverworldCharacters()
 {
@@ -100,4 +101,99 @@ void RipOverworldMap()
 
 	readStream.Close();
 	writeStream.Close();
+}
+
+void RipOverworldSprites()
+{
+	using var readStream = File.Open("ff1.nes", FileMode.Open, FileAccess.Read);
+	using var writeStream = File.Open("overworld-sprites.4bpp", FileMode.Create, FileAccess.Write);
+
+	var spriteData2bpp = new byte[0x1180];
+	readStream.Position = 0x9010; // start of sprite data
+	readStream.Read(spriteData2bpp, 0, spriteData2bpp.Length); // Read all the sprite data
+
+	// All of these sprites are 16x16, stored as 8x8 tiles, UL-UR-LL-LR.
+	// We need to convert them to 4bpp SNES format, and put the lower two tiles 16 tiles after
+	// the upper two tiles.
+
+	// Start with the player sprites.  There are 12 of these, one for each class.  Each one has
+	// facing down, up, and left (facing right is just mirrored).  Facing left has two frames
+	// of animation, facing up or down animates by simply mirroring the bottom two tiles.  We
+	// will store two frames of animation though, because it's simpler and SNES has the VRAM.
+	byte[] classPalettes = [0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]; // only two palettes were used
+	for (int i = 0; i < 12; i++)
+	{
+		var spriteData4bpp = new byte[0x400]; // 2 rows of SNES sprite data, 32 bytes x 8 sprites x 4 tiles
+		int nesOffset = i * 16 * 4 * 4; // 16 bytes, 4 sprites, 4 tiles each
+		// Down
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset, 0x10), new Span<byte>(spriteData4bpp, 0, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x10, 0x10), new Span<byte>(spriteData4bpp, 0x20, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x20, 0x10), new Span<byte>(spriteData4bpp, 0x200, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x30, 0x10), new Span<byte>(spriteData4bpp, 0x220, 0x20), classPalettes[i]);
+		// Down second frame, the lower two tiles are horizontally flipped
+		FlipNes2bppHorizontally(new Span<byte>(spriteData2bpp, nesOffset + 0x20, 0x10));
+		FlipNes2bppHorizontally(new Span<byte>(spriteData2bpp, nesOffset + 0x30, 0x10));
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset, 0x10), new Span<byte>(spriteData4bpp, 0x40, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x10, 0x10), new Span<byte>(spriteData4bpp, 0x60, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x30, 0x10), new Span<byte>(spriteData4bpp, 0x240, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x20, 0x10), new Span<byte>(spriteData4bpp, 0x260, 0x20), classPalettes[i]);
+		// Up
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x40, 0x10), new Span<byte>(spriteData4bpp, 0x80, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x50, 0x10), new Span<byte>(spriteData4bpp, 0xA0, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x60, 0x10), new Span<byte>(spriteData4bpp, 0x280, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x70, 0x10), new Span<byte>(spriteData4bpp, 0x2A0, 0x20), classPalettes[i]);
+		// Up second frame
+		FlipNes2bppHorizontally(new Span<byte>(spriteData2bpp, nesOffset + 0x60, 0x10));
+		FlipNes2bppHorizontally(new Span<byte>(spriteData2bpp, nesOffset + 0x70, 0x10));
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x40, 0x10), new Span<byte>(spriteData4bpp, 0xC0, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x50, 0x10), new Span<byte>(spriteData4bpp, 0xE0, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x70, 0x10), new Span<byte>(spriteData4bpp, 0x2C0, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x60, 0x10), new Span<byte>(spriteData4bpp, 0x2E0, 0x20), classPalettes[i]);
+		// Left
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x80, 0x10), new Span<byte>(spriteData4bpp, 0x100, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x90, 0x10), new Span<byte>(spriteData4bpp, 0x120, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xA0, 0x10), new Span<byte>(spriteData4bpp, 0x300, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xB0, 0x10), new Span<byte>(spriteData4bpp, 0x320, 0x20), classPalettes[i]);
+		// Left second frame
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xC0, 0x10), new Span<byte>(spriteData4bpp, 0x140, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xD0, 0x10), new Span<byte>(spriteData4bpp, 0x160, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xE0, 0x10), new Span<byte>(spriteData4bpp, 0x340, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xF0, 0x10), new Span<byte>(spriteData4bpp, 0x360, 0x20), classPalettes[i]);
+
+		writeStream.Write(spriteData4bpp, 0, spriteData4bpp.Length);
+	}
+}
+
+/// <summary>
+/// Converts a 2bpp 8x8 NES CHR to a 4bpp SNES CHR.
+/// </summary>
+/// <param name="paletteIndex">A value from 0-3 which will fill in the upper 2 bits of
+/// the SNES color.</param>
+void Nes2bppToSnes4bpp(Span<byte> nes, Span<byte> snes, byte paletteIndex)
+{
+	byte lowPalette = (byte)((paletteIndex & 0x01) == 0 ? 0x00 : 0xFF);
+	byte highPalette = (byte)((paletteIndex & 0x02) == 0 ? 0x00 : 0xFF);
+	for (int y = 0; y < 8; y++) // 8 rows of pixels
+	{
+		snes[2 * y] = nes[y];
+		snes[2 * y + 1] = nes[y + 8];
+		snes[2 * y + 16] = lowPalette;
+		snes[2 * y + 17] = highPalette;
+	}
+}
+
+void FlipNes2bppHorizontally(Span<byte> nes)
+{
+	for (int y = 0; y < 15; y++)
+	{
+		nes[y] = (byte)(
+			(nes[y] & 0x01) << 7 |
+			(nes[y] & 0x02) << 5 |
+			(nes[y] & 0x04) << 3 |
+			(nes[y] & 0x08) << 1 |
+			(nes[y] & 0x10) >> 1 |
+			(nes[y] & 0x20) >> 3 |
+			(nes[y] & 0x40) >> 5 |
+			(nes[y] & 0x80) >> 7);
+	}
 }

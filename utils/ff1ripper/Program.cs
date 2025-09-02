@@ -120,45 +120,46 @@ void RipOverworldSprites()
 	// facing down, up, and left (facing right is just mirrored).  Facing left has two frames
 	// of animation, facing up or down animates by simply mirroring the bottom two tiles.  We
 	// will store two frames of animation though, because it's simpler and SNES has the VRAM.
-	byte[] classPalettes = [0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]; // only two palettes were used
+	byte[] classTopPalettes    = [0, 1, 2, 0, 3, 2, 0, 0, 2, 0, 0, 2];
+	byte[] classBottomPalettes = [0, 2, 1, 0, 3, 1, 0, 0, 1, 3, 0, 1];
 	for (int i = 0; i < 12; i++)
 	{
 		var spriteData4bpp = new byte[0x400]; // 2 rows of SNES sprite data, 32 bytes x 8 sprites x 4 tiles
 		int nesOffset = i * 16 * 4 * 4; // 16 bytes, 4 sprites, 4 tiles each
 		// Down
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset, 0x10), new Span<byte>(spriteData4bpp, 0, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x10, 0x10), new Span<byte>(spriteData4bpp, 0x20, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x20, 0x10), new Span<byte>(spriteData4bpp, 0x200, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x30, 0x10), new Span<byte>(spriteData4bpp, 0x220, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x00, 0x10), new Span<byte>(spriteData4bpp, 0x000, 0x20), classTopPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x10, 0x10), new Span<byte>(spriteData4bpp, 0x020, 0x20), classTopPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x20, 0x10), new Span<byte>(spriteData4bpp, 0x200, 0x20), classBottomPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x30, 0x10), new Span<byte>(spriteData4bpp, 0x220, 0x20), classBottomPalettes[i]);
 		// Down second frame, the lower two tiles are horizontally flipped
 		FlipNes2bppHorizontally(new Span<byte>(spriteData2bpp, nesOffset + 0x20, 0x10));
 		FlipNes2bppHorizontally(new Span<byte>(spriteData2bpp, nesOffset + 0x30, 0x10));
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset, 0x10), new Span<byte>(spriteData4bpp, 0x40, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x10, 0x10), new Span<byte>(spriteData4bpp, 0x60, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x30, 0x10), new Span<byte>(spriteData4bpp, 0x240, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x20, 0x10), new Span<byte>(spriteData4bpp, 0x260, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x00, 0x10), new Span<byte>(spriteData4bpp, 0x040, 0x20), classTopPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x10, 0x10), new Span<byte>(spriteData4bpp, 0x060, 0x20), classTopPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x30, 0x10), new Span<byte>(spriteData4bpp, 0x240, 0x20), classBottomPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x20, 0x10), new Span<byte>(spriteData4bpp, 0x260, 0x20), classBottomPalettes[i]);
 		// Up
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x40, 0x10), new Span<byte>(spriteData4bpp, 0x80, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x50, 0x10), new Span<byte>(spriteData4bpp, 0xA0, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x60, 0x10), new Span<byte>(spriteData4bpp, 0x280, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x70, 0x10), new Span<byte>(spriteData4bpp, 0x2A0, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x40, 0x10), new Span<byte>(spriteData4bpp, 0x080, 0x20), classTopPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x50, 0x10), new Span<byte>(spriteData4bpp, 0x0A0, 0x20), classTopPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x60, 0x10), new Span<byte>(spriteData4bpp, 0x280, 0x20), classBottomPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x70, 0x10), new Span<byte>(spriteData4bpp, 0x2A0, 0x20), classBottomPalettes[i]);
 		// Up second frame
 		FlipNes2bppHorizontally(new Span<byte>(spriteData2bpp, nesOffset + 0x60, 0x10));
 		FlipNes2bppHorizontally(new Span<byte>(spriteData2bpp, nesOffset + 0x70, 0x10));
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x40, 0x10), new Span<byte>(spriteData4bpp, 0xC0, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x50, 0x10), new Span<byte>(spriteData4bpp, 0xE0, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x70, 0x10), new Span<byte>(spriteData4bpp, 0x2C0, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x60, 0x10), new Span<byte>(spriteData4bpp, 0x2E0, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x40, 0x10), new Span<byte>(spriteData4bpp, 0x0C0, 0x20), classTopPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x50, 0x10), new Span<byte>(spriteData4bpp, 0x0E0, 0x20), classTopPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x70, 0x10), new Span<byte>(spriteData4bpp, 0x2C0, 0x20), classBottomPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x60, 0x10), new Span<byte>(spriteData4bpp, 0x2E0, 0x20), classBottomPalettes[i]);
 		// Left
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x80, 0x10), new Span<byte>(spriteData4bpp, 0x100, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x90, 0x10), new Span<byte>(spriteData4bpp, 0x120, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xA0, 0x10), new Span<byte>(spriteData4bpp, 0x300, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xB0, 0x10), new Span<byte>(spriteData4bpp, 0x320, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x80, 0x10), new Span<byte>(spriteData4bpp, 0x100, 0x20), classTopPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x90, 0x10), new Span<byte>(spriteData4bpp, 0x120, 0x20), classTopPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xA0, 0x10), new Span<byte>(spriteData4bpp, 0x300, 0x20), classBottomPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xB0, 0x10), new Span<byte>(spriteData4bpp, 0x320, 0x20), classBottomPalettes[i]);
 		// Left second frame
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xC0, 0x10), new Span<byte>(spriteData4bpp, 0x140, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xD0, 0x10), new Span<byte>(spriteData4bpp, 0x160, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xE0, 0x10), new Span<byte>(spriteData4bpp, 0x340, 0x20), classPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xF0, 0x10), new Span<byte>(spriteData4bpp, 0x360, 0x20), classPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xC0, 0x10), new Span<byte>(spriteData4bpp, 0x140, 0x20), classTopPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xD0, 0x10), new Span<byte>(spriteData4bpp, 0x160, 0x20), classTopPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xE0, 0x10), new Span<byte>(spriteData4bpp, 0x340, 0x20), classBottomPalettes[i]);
+		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xF0, 0x10), new Span<byte>(spriteData4bpp, 0x360, 0x20), classBottomPalettes[i]);
 
 		writeStream.Write(spriteData4bpp, 0, spriteData4bpp.Length);
 	}
@@ -184,7 +185,7 @@ void Nes2bppToSnes4bpp(Span<byte> nes, Span<byte> snes, byte paletteIndex)
 
 void FlipNes2bppHorizontally(Span<byte> nes)
 {
-	for (int y = 0; y < 15; y++)
+	for (int y = 0; y < 0x10; y++)
 	{
 		nes[y] = (byte)(
 			(nes[y] & 0x01) << 7 |

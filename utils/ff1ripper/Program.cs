@@ -115,54 +115,77 @@ void RipOverworldSprites()
 	// All of these sprites are 16x16, stored as 8x8 tiles, UL-UR-LL-LR.
 	// We need to convert them to 4bpp SNES format, and put the lower two tiles 16 tiles after
 	// the upper two tiles.
+	byte[][] snesSprites = new byte[15 * 6][];
+	for (int i = 0; i < snesSprites.Length; i++)
+	{
+		snesSprites[i] = new byte[0x80]; // each SNES sprite is 32 bytes * 4 tiles
+	}
 
 	// Start with the player sprites.  There are 12 of these, one for each class.  Each one has
 	// facing down, up, and left (facing right is just mirrored).  Facing left has two frames
 	// of animation, facing up or down animates by simply mirroring the bottom two tiles.  We
 	// will store two frames of animation though, because it's simpler and SNES has the VRAM.
-	byte[] classTopPalettes    = [0, 1, 2, 0, 3, 2, 0, 0, 2, 0, 0, 2];
+	byte[] classTopPalettes = [0, 1, 2, 0, 3, 2, 0, 0, 2, 0, 0, 2];
 	byte[] classBottomPalettes = [0, 2, 1, 0, 3, 1, 0, 0, 1, 0, 3, 1];
 	for (int i = 0; i < 12; i++)
 	{
-		var spriteData4bpp = new byte[0x400]; // 2 rows of SNES sprite data, 32 bytes x 8 sprites x 4 tiles
-		int nesOffset = i * 16 * 4 * 4; // 16 bytes, 4 sprites, 4 tiles each
-		// Down
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x00, 0x10), new Span<byte>(spriteData4bpp, 0x000, 0x20), classTopPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x10, 0x10), new Span<byte>(spriteData4bpp, 0x020, 0x20), classTopPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x20, 0x10), new Span<byte>(spriteData4bpp, 0x200, 0x20), classBottomPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x30, 0x10), new Span<byte>(spriteData4bpp, 0x220, 0x20), classBottomPalettes[i]);
-		// Down second frame, the lower two tiles are horizontally flipped
-		FlipNes2bppHorizontally(new Span<byte>(spriteData2bpp, nesOffset + 0x20, 0x10));
-		FlipNes2bppHorizontally(new Span<byte>(spriteData2bpp, nesOffset + 0x30, 0x10));
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x00, 0x10), new Span<byte>(spriteData4bpp, 0x040, 0x20), classTopPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x10, 0x10), new Span<byte>(spriteData4bpp, 0x060, 0x20), classTopPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x30, 0x10), new Span<byte>(spriteData4bpp, 0x240, 0x20), classBottomPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x20, 0x10), new Span<byte>(spriteData4bpp, 0x260, 0x20), classBottomPalettes[i]);
-		// Up
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x40, 0x10), new Span<byte>(spriteData4bpp, 0x080, 0x20), classTopPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x50, 0x10), new Span<byte>(spriteData4bpp, 0x0A0, 0x20), classTopPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x60, 0x10), new Span<byte>(spriteData4bpp, 0x280, 0x20), classBottomPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x70, 0x10), new Span<byte>(spriteData4bpp, 0x2A0, 0x20), classBottomPalettes[i]);
-		// Up second frame
-		FlipNes2bppHorizontally(new Span<byte>(spriteData2bpp, nesOffset + 0x60, 0x10));
-		FlipNes2bppHorizontally(new Span<byte>(spriteData2bpp, nesOffset + 0x70, 0x10));
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x40, 0x10), new Span<byte>(spriteData4bpp, 0x0C0, 0x20), classTopPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x50, 0x10), new Span<byte>(spriteData4bpp, 0x0E0, 0x20), classTopPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x70, 0x10), new Span<byte>(spriteData4bpp, 0x2C0, 0x20), classBottomPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x60, 0x10), new Span<byte>(spriteData4bpp, 0x2E0, 0x20), classBottomPalettes[i]);
-		// Left
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x80, 0x10), new Span<byte>(spriteData4bpp, 0x100, 0x20), classTopPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0x90, 0x10), new Span<byte>(spriteData4bpp, 0x120, 0x20), classTopPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xA0, 0x10), new Span<byte>(spriteData4bpp, 0x300, 0x20), classBottomPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xB0, 0x10), new Span<byte>(spriteData4bpp, 0x320, 0x20), classBottomPalettes[i]);
-		// Left second frame
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xC0, 0x10), new Span<byte>(spriteData4bpp, 0x140, 0x20), classTopPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xD0, 0x10), new Span<byte>(spriteData4bpp, 0x160, 0x20), classTopPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xE0, 0x10), new Span<byte>(spriteData4bpp, 0x340, 0x20), classBottomPalettes[i]);
-		Nes2bppToSnes4bpp(new Span<byte>(spriteData2bpp, nesOffset + 0xF0, 0x10), new Span<byte>(spriteData4bpp, 0x360, 0x20), classBottomPalettes[i]);
+		int nesOffset = i * 0x10 * 4 * 4; // 16 bytes, 4 sprites, 4 tiles each
 
-		writeStream.Write(spriteData4bpp, 0, spriteData4bpp.Length);
+		// Down
+		NesSpriteToSnesSprite(spriteData2bpp[nesOffset..(nesOffset + 0x40)], snesSprites[i * 6], classTopPalettes[i], classBottomPalettes[i]);
+		// Down second frame, the lower two tiles are horizontally flipped
+		NesSpriteToSnesSpriteBottomRowFlipped(spriteData2bpp[nesOffset..(nesOffset + 0x40)], snesSprites[i * 6 + 1], classTopPalettes[i], classBottomPalettes[i]);
+		// Up
+		NesSpriteToSnesSprite(spriteData2bpp[(nesOffset + 0x40)..(nesOffset + 0x80)], snesSprites[i * 6 + 2], classTopPalettes[i], classBottomPalettes[i]);
+		// Up second frame
+		NesSpriteToSnesSpriteBottomRowFlipped(spriteData2bpp[(nesOffset + 0x40)..(nesOffset + 0x80)], snesSprites[i * 6 + 3], classTopPalettes[i], classBottomPalettes[i]);
+		// Left
+		NesSpriteToSnesSprite(spriteData2bpp[(nesOffset + 0x80)..(nesOffset + 0xC0)], snesSprites[i * 6 + 4], classTopPalettes[i], classBottomPalettes[i]);
+		// Left second frame
+		NesSpriteToSnesSprite(spriteData2bpp[(nesOffset + 0xC0)..(nesOffset + 0x100)], snesSprites[i * 6 + 5], classTopPalettes[i], classBottomPalettes[i]);
 	}
+
+	// Ship, Airship, Canoe, these are the same as above, but they don't mirror the bottom half to
+	// animate, they actually have full frames.
+	int baseVehicleOffset = 13 * 0x10 * 4 * 4; // 16 bytes, 4 sprites, 4 tiles each, +1 for a few random sprites
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 6; j++)
+		{
+			int nesOffset = baseVehicleOffset + (i * 6 + j) * 4 * 0x10;
+			NesSpriteToSnesSprite(spriteData2bpp[nesOffset..(nesOffset + 0x40)], snesSprites[(i + 12) * 6 + j], 3, 3); // All of these are palette 3?
+		}
+	}
+
+	// Now we write the output.  The way sprites are stored in VRAM, the lower two tiles are a "row" lower, or 16 tile-lengths farther.
+	int numRows = (int)Math.Ceiling((decimal)snesSprites.Length / 8);
+	byte[] output = new byte[0x20 * 8 * 4 * numRows]; // 32 bytes, 8 sprites, 4 tiles each
+	for (int i = 0; i < snesSprites.Length; i++)
+	{
+		int offset = (i / 8) * 0x20 * 8 * 4 + (i % 8) * 0x20 * 2;
+		Array.Copy(snesSprites[i], 0, output, offset, 0x20 * 2);
+		Array.Copy(snesSprites[i], 0x20 * 2, output, offset + 16 * 0x20, 0x20 * 2);
+	}
+
+	writeStream.Write(output, 0, output.Length);
+}
+
+void NesSpriteToSnesSprite(Span<byte> nes, Span<byte> snes, byte topPalette, byte bottomPalette)
+{
+	Nes2bppToSnes4bpp(nes[0x00..0x10], snes[0x00..0x20], topPalette);
+	Nes2bppToSnes4bpp(nes[0x10..0x20], snes[0x20..0x40], topPalette);
+	Nes2bppToSnes4bpp(nes[0x20..0x30], snes[0x40..0x60], bottomPalette);
+	Nes2bppToSnes4bpp(nes[0x30..0x40], snes[0x60..0x80], bottomPalette);
+}
+
+void NesSpriteToSnesSpriteBottomRowFlipped(Span<byte> nes, Span<byte> snes, byte topPalette, byte bottomPalette)
+{
+	FlipNes2bppHorizontally(nes[0x20..0x30]);
+	FlipNes2bppHorizontally(nes[0x30..0x40]);
+	Nes2bppToSnes4bpp(nes[0x00..0x10], snes[0x00..0x20], topPalette);
+	Nes2bppToSnes4bpp(nes[0x10..0x20], snes[0x20..0x40], topPalette);
+	Nes2bppToSnes4bpp(nes[0x30..0x40], snes[0x40..0x60], bottomPalette);
+	Nes2bppToSnes4bpp(nes[0x20..0x30], snes[0x60..0x80], bottomPalette);
 }
 
 /// <summary>

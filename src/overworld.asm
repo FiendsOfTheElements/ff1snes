@@ -41,23 +41,23 @@ OverworldPalette:
 
 OverworldTilemaps: .incbin "data/overworld-tilemaps.bin"
 
-SpritePalette: ; no way are these right, and it doesn't matter
+OverworldSpritePalette:
 	COLOR  0,  0,  0
 	COLOR  0,  0,  0
-	COLOR 27,  0,  0
-	COLOR 27, 27, 16
+	COLOR 27,  1, 16
+	COLOR 30, 30, 10
 	COLOR  0,  0,  0
 	COLOR  0,  0,  0
-	COLOR  8,  0, 18
-	COLOR 27, 27, 16
+	COLOR  1, 13, 25
+	COLOR 30, 30, 10
 	COLOR  0,  0,  0
 	COLOR  0,  0,  0
-	COLOR 22, 22,  4
-	COLOR 27, 27, 16
+	COLOR 27, 19,  1
+	COLOR 30, 30, 10
 	COLOR  0,  0,  0
 	COLOR  0,  0,  0
 	COLOR 31, 31, 31
-	COLOR 27, 27, 16
+	COLOR 30, 30, 10
 
 .export MAPPOSX  = $1000
 .export MAPPOSY  = $1002
@@ -78,33 +78,16 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 
 	jsr LoadOverworldCharacters
 	jsr LoadOverworldPalette
+	jsr LoadOverworldSprites
+	jsr LoadOverworldSpritePalette
 	jsr LoadOverworldMapData
 
 	stz MAPANGLE            ; initial rotation (none)
 	lda #$0040              ; initial zoom (1x)
 	sta MAPZOOM
 
-	sep #$20                ; set A to 8-bit
-	lda #$07
-	sta BGMODE
-	stz M7SEL               ; wrap tiles, no flipping
-	stz M7A
-	lda #$01
-	sta M7A                 ; initialize Mode 7 matrix with identity
-	stz M7B
-	stz M7B
-	stz M7C
-	stz M7C
-	stz M7D
-	sta M7D
+	jsr SetupVideo
 
-	jsr SetMode7Matrix      ; set up Mode 7 transform parameters
-
-	lda #$01                ; enable BG1
-	sta TM
-
-	lda #$0f
-	sta INIDISP             ; release forced blanking, set screen to full brightness
 	lda #$81
 	sta NMITIMEN            ; enable NMI, turn on automatic joypad polling
 
@@ -123,7 +106,7 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	stx VMADDL                  ; start at VRAM address 0
 	lda #<VMDATAH               ; write to VRAM high register (Mode 7 graphics)
 	sta DMA0ADDB
-	ldx #OverworldChr & $ffff   ; not sure how to tell the assembler about OverworldChr address
+	ldx #OverworldChr & $ffff   ; the OverworldChr address is long, so we mask it
 	stx DMA0ADDAL               ; read from overworld CHR data
 	lda #BANK_OVERWORLD         ; which is in this bank
 	sta DMA0ADDAH
@@ -379,6 +362,73 @@ Loop:
 	rts
 .endproc
 
+.proc LoadOverworldSprites
+	; There are a 12 character classes and 3 vehicles, each with 6 frames of animation.
+	; Each of these is a 16x16 sprite taking up 128 bytes.  All told, 12 KB of data
+	; (with room at the end for one more set of 6).
+	sep #$20                      ; A to 8-bit
+	rep #$10                      ; X,Y to 16-bit
+	stz MDMAEN                    ; reset DMA
+	lda #$80                      ; VRAM increment on write to VMDATAH
+	sta VMAINC
+	ldx #$4000
+	stx VMADDL                    ; start at VRAM address $4000
+	lda #<VMDATAL                 ; write to VRAM low register
+	sta DMA0ADDB
+	ldx #OverworldSprites & $ffff ; OverworldSprites address is long
+	stx DMA0ADDAL                 ; read from overworld sprite data
+	lda #BANK_OWSPRITE            ; which is in this bank
+	sta DMA0ADDAH
+	ldx #$3000                    ; write 12 KB (128 bytes * 6 frames * 16 classes/vehicles)
+	stx DMA0AMTL
+	lda #$01
+	sta DMA0PARAM                 ; configure DMA0 for A->B, inc A address, 2 bytes to 2 registers (VMDATAL/H)
+	sta MDMAEN                    ; enable
+	rts
+.endproc
+
+.proc LoadOverworldSpritePalette
+	rep #$20        ; set A to 16-bit so we can
+	lda #$0000      ; clear the high byte
+	sep #$20        ; set A to 8-bit
+	rep #$10        ; set X,Y to 16-bit
+	lda #BANK_MAIN  ; set data bank to main
+	pha
+	plb
+
+	lda #$80
+	sta CGADD       ; start at CGRAM address $80
+	ldx #$0000
+Loop:
+	lda OverworldSpritePalette, X ; get a byte of palette data
+	sta CGDATA                    ; write it to CGRAM
+	inx
+	cpx #$0020                    ; length of palette data
+	bne Loop
+
+	rts
+.endproc
+
+.proc SetupVideo
+	sep #$20                ; set A to 8-bit
+
+	lda #$07
+	sta BGMODE
+	stz M7SEL               ; wrap tiles, no flipping
+	jsr SetMode7Matrix      ; set up Mode 7 transform parameters
+
+	lda #$62                ; sprites are 16x16 and 32x32, sprite RAM is at $8000 (but word address $4000)
+	sta OBJSEL
+
+	lda #$11                ; enable BG1 and sprites
+	sta TM
+
+	lda #$0f
+	sta INIDISP             ; release forced blanking, set screen to full brightness
+
+	rts
+.endproc
+
 .proc DoOverworldMovement
 	rep #$20                            ; set A to 16-bit
 	; check the dpad, if any of the directional buttons are pressed,
@@ -463,6 +513,10 @@ CheckLButton:
 
 Done:
 	rts
+.endproc
+
+.proc SetOverworldCharacterObj
+
 .endproc
 
 .proc SetMode7Matrix

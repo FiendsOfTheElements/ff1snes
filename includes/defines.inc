@@ -8,6 +8,7 @@
 
 BANK_MAIN      = $00
 BANK_OVERWORLD = $02
+BANK_OWSPRITE  = $03
 
 ; WRAM locations CAN overlap, but only if the bits of code using the overlap are okay with it!
 

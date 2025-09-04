@@ -44,6 +44,7 @@
 .import MAPPOSY
 
 .include "registers.inc"
+.include "defines.inc"
 
 .segment "CODE"
 

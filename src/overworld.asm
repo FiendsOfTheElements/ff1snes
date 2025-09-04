@@ -10,8 +10,6 @@
 .export DoOverworldMovement
 .export SetMode7Matrix
 
-.import JOYPAD1
-
 .import Sine
 .import Cosine
 
@@ -40,10 +38,6 @@ OverworldPalette:
 	COLOR  0, 21,  0
 
 OverworldTilemaps: .incbin "data/overworld-tilemaps.bin"
-
-OverworldMapBank = $7E
-OverworldMap  = $4000 ; store the decompressed overworld map from $7E:4000-7E:7FFF (64 rows x 256 columns, 4096 bytes)
-TileMapBuffer = $1800 ; this is a buffer from which a row or column of tiles will be DMA'd into VRAM, 256 bytes
 
 .export MAPPOSX  = $1000
 .export MAPPOSY  = $1002
@@ -370,7 +364,7 @@ Loop:
 	; check the dpad, if any of the directional buttons are pressed,
 	; move the screen accordingly
 CheckUpButton:
-	lda JOYPAD1                         ; read joypad buttons pressed
+	lda JoyPad1                         ; read joypad buttons pressed
 	and #BUTTON_UP
 	beq CheckDownButton
 	lda MAPPOSY
@@ -380,7 +374,7 @@ CheckUpButton:
 	sta MAPPOSY
 
 CheckDownButton:
-	lda JOYPAD1
+	lda JoyPad1
 	and #BUTTON_DOWN
 	beq CheckLeftButton
 	lda MAPPOSY
@@ -390,7 +384,7 @@ CheckDownButton:
 	sta MAPPOSY
 
 CheckLeftButton:
-	lda JOYPAD1
+	lda JoyPad1
 	and #BUTTON_LEFT
 	beq CheckRightButton
 	lda MAPPOSX
@@ -400,7 +394,7 @@ CheckLeftButton:
 	sta MAPPOSX
 
 CheckRightButton:
-	lda JOYPAD1
+	lda JoyPad1
 	and #BUTTON_RIGHT
 	beq CheckXButton
 	lda MAPPOSX
@@ -410,7 +404,7 @@ CheckRightButton:
 	sta MAPPOSX
 
 CheckXButton:
-	lda JOYPAD1
+	lda JoyPad1
 	and #BUTTON_X
 	beq CheckYButton
 	lda MAPZOOM
@@ -421,7 +415,7 @@ CheckXButton:
 	sta MAPZOOM
 
 CheckYButton:
-	lda JOYPAD1
+	lda JoyPad1
 	and #BUTTON_Y
 	beq CheckRButton
 	lda MAPZOOM
@@ -432,7 +426,7 @@ CheckYButton:
 	sta MAPZOOM
 
 CheckRButton:
-	lda JOYPAD1
+	lda JoyPad1
 	and #BUTTON_R
 	beq CheckLButton
 	lda MAPANGLE
@@ -440,7 +434,7 @@ CheckRButton:
 	sta MAPANGLE
 
 CheckLButton:
-	lda JOYPAD1
+	lda JoyPad1
 	and #BUTTON_L
 	beq Done
 	lda MAPANGLE

@@ -14,8 +14,10 @@
 .import Cosine
 
 .segment "OVERWORLD"
-CompressedOverworld: .incbin "data/overworld-map.bin"
-OverworldChr:        .incbin "graphics/overworld-chr.m7"
+OverworldChr:        .incbin "graphics/overworld-chr.m7"         ; 16 KB
+CompressedOverworld: .incbin "data/overworld-map.bin"            ; 16 KB, filling out the entire bank
+.segment "OWSPRITE"
+OverworldSprites:    .incbin "graphics/overworld-sprites.4bpp"   ; 12 KB
 
 .segment "CODE"
 
@@ -38,6 +40,24 @@ OverworldPalette:
 	COLOR  0, 21,  0
 
 OverworldTilemaps: .incbin "data/overworld-tilemaps.bin"
+
+SpritePalette: ; no way are these right, and it doesn't matter
+	COLOR  0,  0,  0
+	COLOR  0,  0,  0
+	COLOR 27,  0,  0
+	COLOR 27, 27, 16
+	COLOR  0,  0,  0
+	COLOR  0,  0,  0
+	COLOR  8,  0, 18
+	COLOR 27, 27, 16
+	COLOR  0,  0,  0
+	COLOR  0,  0,  0
+	COLOR 22, 22,  4
+	COLOR 27, 27, 16
+	COLOR  0,  0,  0
+	COLOR  0,  0,  0
+	COLOR 31, 31, 31
+	COLOR 27, 27, 16
 
 .export MAPPOSX  = $1000
 .export MAPPOSY  = $1002

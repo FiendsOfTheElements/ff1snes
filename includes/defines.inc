@@ -7,7 +7,7 @@
 .endmacro
 
 BANK_MAIN      = $00
-BANK_OVERWORLD = $01
+BANK_OVERWORLD = $02
 
 ; WRAM locations CAN overlap, but only if the bits of code using the overlap are okay with it!
 

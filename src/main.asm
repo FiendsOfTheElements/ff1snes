@@ -58,6 +58,8 @@
 	ldx #$1fff              ; set the stack pointer to $1fff
 	txs
 
+	jsr InitializeOam
+
 	ldx #$0990              ; set the initial scroll
 	stx MAPPOSX
 	ldy #$0A50
@@ -66,6 +68,23 @@
 	jsr LoadOverworld
 
 	jmp GameLoop            ; all initialization is done
+.endproc
+
+.proc InitializeOam
+	ldx #$1ff               ; size of main OAM
+@BaseLoop:
+	stz OamMirror, X        ; zero out main OAM
+	dex
+	bpl @BaseLoop
+
+	lda #$55                ; this sets the sprite size to 0 and puts the sprite off the right side of the screen
+	ldx #$1f                ; size of upper OAM
+@UpperLoop:
+	sta OamMirror + $200, X
+	dex
+	bpl @UpperLoop
+
+	rts
 .endproc
 
 .proc   GameLoop
@@ -78,9 +97,28 @@
 .endproc
 
 .proc   NMIHandler
+	php
+	rep #$10                ; set X and Y to 16-bit
+	sep #$20                ; set A to 8-bit
+
 	lda RDNMI               ; read NMI status, acknowledge NMI
+
+	stz MDMAEN                  ; reset DMA
+	ldx #$0000
+	stx OAMADDL                 ; start at OAM address 0
+	lda #<OAMDATA               ; write to OAM
+	sta DMA7ADDB
+	ldx #OamMirror              ; OamMirror is a short address
+	stx DMA7ADDAL               ; read from OamMirror
+	stz DMA7ADDAH               ; doesn't matter which bank
+	ldx #$220                   ; write 544 bytes
+	stx DMA7AMTL
+	stz DMA7PARAM               ; configure DMA7 for A->B, inc A address, 1 byte to 1 register
+	lda #$80                    ; enable DMA7
+	sta MDMAEN
 
 	jsr SetMode7Matrix
 
+	plp
 	rti
 .endproc

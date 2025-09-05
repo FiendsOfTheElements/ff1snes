@@ -59,8 +59,8 @@ OverworldSpritePalette:
 	COLOR 31, 31, 31
 	COLOR 30, 30, 10
 
-.export MAPPOSX  = $1000
-.export MAPPOSY  = $1002
+MAPPOSX  = $1000
+MAPPOSY  = $1002
 MINPOSX  = $0080
 MAXPOSX  = $0380
 MINPOSY  = $0070
@@ -76,18 +76,24 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	sta INIDISP
 	stz NMITIMEN            ; disable NMI
 
+	rep #$30                ; A,X,Y to 16-bit
+	ldx #$0990              ; set the initial scroll
+	stx MAPPOSX
+	ldy #$0A50
+	sty MAPPOSY
+	stz MAPANGLE            ; initial rotation (none)
+	lda #$0040              ; initial zoom (1x)
+	sta MAPZOOM
+
 	jsr LoadOverworldCharacters
 	jsr LoadOverworldPalette
 	jsr LoadOverworldSprites
 	jsr LoadOverworldSpritePalette
 	jsr LoadOverworldMapData
 
-	stz MAPANGLE            ; initial rotation (none)
-	lda #$0040              ; initial zoom (1x)
-	sta MAPZOOM
-
 	jsr SetupVideo
 
+	sep #$20                ; A to 8-bit
 	lda #$81
 	sta NMITIMEN            ; enable NMI, turn on automatic joypad polling
 
@@ -431,6 +437,7 @@ Loop:
 
 .proc DoOverworldMovement
 	rep #$20                            ; set A to 16-bit
+
 	; check the dpad, if any of the directional buttons are pressed,
 	; move the screen accordingly
 CheckUpButton:

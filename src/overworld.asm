@@ -59,14 +59,18 @@ OverworldSpritePalette:
 	COLOR 31, 31, 31
 	COLOR 30, 30, 10
 
+DirDown  = 1
+DirUp    = 2
+DirLeft  = 3
+DirRight = 4
+
 MAPPOSX  = $1000
 MAPPOSY  = $1002
-MINPOSX  = $0080
-MAXPOSX  = $0380
-MINPOSY  = $0070
-MAXPOSY  = $0390
 MAPANGLE = $1004
 MAPZOOM  = $1006
+MOVEDIR  = $1008
+FACEDIR  = $1009
+
 MAXZOOM  = $7F   ; zoom value is fixed point, where $0040 is 1.0
 MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 
@@ -76,10 +80,13 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	sta INIDISP
 	stz NMITIMEN            ; disable NMI
 
+	stz MOVEDIR             ; be still
+	lda #DirDown            ; face down
+	sta FACEDIR
 	rep #$30                ; A,X,Y to 16-bit
-	ldx #$0990              ; set the initial scroll
+	ldx #$0998              ; set the initial scroll
 	stx MAPPOSX
-	ldy #$0A50
+	ldy #$0A58
 	sty MAPPOSY
 	stz MAPANGLE            ; initial rotation (none)
 	lda #$0040              ; initial zoom (1x)
@@ -436,7 +443,11 @@ Loop:
 .endproc
 
 .proc DoOverworldMovement
-	rep #$20                            ; set A to 16-bit
+	rep #$20                ; set A to 16-bit
+	sep #$10                ; set X,Y to 8-bit
+
+	ldx MOVEDIR             ; see if we're already moving
+	bne Move
 
 	; check the dpad, if any of the directional buttons are pressed,
 	; move the screen accordingly
@@ -444,86 +455,142 @@ CheckUpButton:
 	lda JoyPad1                         ; read joypad buttons pressed
 	and #BUTTON_UP
 	beq CheckDownButton
-	lda MAPPOSY
-	cmp #MINPOSY
-	beq CheckDownButton
-	dec
-	sta MAPPOSY
+	ldx #DirUp
+	stx FACEDIR
+	; check if we are able to move up
+	stx MOVEDIR
 
 CheckDownButton:
 	lda JoyPad1
 	and #BUTTON_DOWN
 	beq CheckLeftButton
-	lda MAPPOSY
-	cmp #MAXPOSY
-	beq CheckLeftButton
-	inc
-	sta MAPPOSY
+	ldx #DirDown
+	stx FACEDIR
+	; check if we are able to move down
+	stx MOVEDIR
 
 CheckLeftButton:
 	lda JoyPad1
 	and #BUTTON_LEFT
 	beq CheckRightButton
-	lda MAPPOSX
-	cmp #MINPOSX
-	beq CheckRightButton
-	dec
-	sta MAPPOSX
+	ldx #DirLeft
+	stx FACEDIR
+	; check if we are able to move left
+	stx MOVEDIR
 
 CheckRightButton:
 	lda JoyPad1
 	and #BUTTON_RIGHT
-	beq CheckXButton
-	lda MAPPOSX
-	cmp #MAXPOSX
-	beq CheckXButton
-	inc
-	sta MAPPOSX
-
-CheckXButton:
-	lda JoyPad1
-	and #BUTTON_X
-	beq CheckYButton
-	lda MAPZOOM
-	and #$00FF        ; just read one byte
-	cmp #MINZOOM
-	beq CheckYButton
-	dec
-	sta MAPZOOM
-
-CheckYButton:
-	lda JoyPad1
-	and #BUTTON_Y
-	beq CheckRButton
-	lda MAPZOOM
-	and #$00FF
-	cmp #MAXZOOM
-	beq CheckRButton
-	inc
-	sta MAPZOOM
-
-CheckRButton:
-	lda JoyPad1
-	and #BUTTON_R
-	beq CheckLButton
-	lda MAPANGLE
-	dec
-	sta MAPANGLE
-
-CheckLButton:
-	lda JoyPad1
-	and #BUTTON_L
 	beq Done
-	lda MAPANGLE
+	ldx #DirRight
+	stx FACEDIR
+	; check if we are able to move right
+	stx MOVEDIR
+
+Move:
+	ldx MOVEDIR
+
+MoveUp:
+	cpx #DirUp
+	bne MoveDown
+	lda MAPPOSY
+	dec
+	and #$0fff       ; wrap around
+	sta MAPPOSY
+	jmp DoneMoving
+
+MoveDown:
+	cpx #DirDown
+	bne MoveLeft
+	lda MAPPOSY
 	inc
-	sta MAPANGLE
+	and #$0fff       ; wrap around
+	sta MAPPOSY
+	jmp DoneMoving
+
+MoveLeft:
+	cpx #DirLeft
+	bne MoveRight
+	lda MAPPOSX
+	dec
+	and #$0fff       ; wrap around
+	sta MAPPOSX
+	jmp DoneMoving
+
+MoveRight:
+	cpx #DirRight
+	bne Done
+	lda MAPPOSX
+	inc
+	and #$0fff       ; wrap around
+	sta MAPPOSX
+	jmp DoneMoving
+
+DoneMoving:
+	and #$000f       ; get the count of pixels walked
+	cmp #$0008       ; offset by 8 because we're in the "center" of a tile
+	bne Done         ; if it wasn't evenly divisible by 16, we're still walking
+	ldx #$00         ; otherwise we stop walking
+	stx MOVEDIR
+	; if we stopped walking, we landed on a square, so run those checks
 
 Done:
+	jsr SetOverworldCharacterObj
 	rts
 .endproc
 
 .proc SetOverworldCharacterObj
-
+	sep #$20             ; set A to 8-bit
+	lda #$78             ; player sprite position is $78, $68
+	sta OamMirror
+	lda #$68
+	sta OamMirror + 1
+	lda FACEDIR          ; get the facing direction
+	cmp #DirRight        ; if we're facing right,
+	bne :+
+	dec                  ; then load the facing left sprite,
+	pha                  ; save it
+	lda #$50             ; and flip the sprite horizontally
+	sta OamMirror + 3
+	pla                  ; recall the sprite
+	jmp FlipDone
+:
+	pha
+	lda #$10             ; otherwise no flip, 1 priority, 0th palette
+	sta OamMirror + 3
+	pla                  ; recall the sprite
+FlipDone:
+	dec                  ; minus 1
+	asl                  ; times 2, since there are 2 frames of animation
+	asl                  ; times 2 again?
+	pha                  ; save this, this is the sprite we want
+	rep #$20             ; A to 16-bit
+	lda MAPPOSX          ; we need to see if we should load frame 2
+	and #$0008           ; see if we've walked 8 pixels, result will be 0 if we have because we're offset by 8
+	bne :+
+	sep #$20             ; A back to 8-bit
+	pla                  ; fetch the sprite
+	inc                  ; we want the next one
+	inc
+	jmp AnimationDone
+:
+.a16                     ; need the hint here that A is still 16-bit
+	lda MAPPOSY          ; we might be walking vertically
+	and #$0008
+	bne :+
+	sep #$20             ; A back to 8-bit
+	pla                  ; fetch the sprite
+	inc                  ; we want the next one
+	inc
+	jmp AnimationDone
+:
+	sep #$20             ; A back to 8-bit
+	pla                  ; fetch the sprite
+AnimationDone:
+	sta OamMirror + 2
+	lda #$01             ; reset the high bit of the x position
+	trb OamMirror + $200
+	rts
 .endproc
 
 .proc SetMode7Matrix

@@ -38,6 +38,7 @@
 
 .import LoadOverworld
 .import DoOverworldMovement
+.import CopyTileMapBufferToVRAM
 .import SetMode7Matrix
 
 .include "registers.inc"
@@ -94,6 +95,15 @@
 
 	lda RDNMI               ; read NMI status, acknowledge NMI
 
+	jsr CopyOamMirrorToOAM
+	jsr CopyTileMapBufferToVRAM
+	jsr SetMode7Matrix
+
+	plp
+	rti
+.endproc
+
+.proc CopyOamMirrorToOAM
 	stz MDMAEN                  ; reset DMA
 	ldx #$0000
 	stx OAMADDL                 ; start at OAM address 0
@@ -107,9 +117,5 @@
 	stz DMA7PARAM               ; configure DMA7 for A->B, inc A address, 1 byte to 1 register
 	lda #$80                    ; enable DMA7
 	sta MDMAEN
-
-	jsr SetMode7Matrix
-
-	plp
-	rti
+	rts
 .endproc

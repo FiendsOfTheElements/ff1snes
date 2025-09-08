@@ -8,6 +8,7 @@
 
 .export LoadOverworld
 .export DoOverworldMovement
+.export CopyTileMapBufferToVRAM
 .export SetMode7Matrix
 
 .import Sine
@@ -166,15 +167,15 @@ Loop:
 	lsr
 	sep #$30                    ; A,X,Y to 8-bit.  We'll wrap around the world correctly.
 	clc
-	adc #$1E                    ; max Y position is 30 rows higher (farther down)
+	adc #$1e                    ; max Y position is 30 rows higher (farther down)
 	sta TempMaxY
 	clc
-	sbc #$3F                    ; min Y position is 63 rows below max.  We go farther up than
+	sbc #$3f                    ; min Y position is 63 rows below max.  We go farther up than
 	tay                         ; down because we can see farther up due to the perspective.
 @Loop:
-	jsr DecompressMapRow        ; Decompress one row
-	jsr CopyMapRowToBuffer      ; Copy the decompressed row to the tile map buffer
-	jsr CopyTileMapBufferToVRAM ; Put it in VRAM
+	jsr DecompressMapRow           ; Decompress one row
+	jsr CopyMapRowToBuffer         ; Copy the decompressed row to the tile map buffer
+	jsr CopyTileMapBufferRowToVRAM ; Put it in VRAM
 	iny
 	cpy TempMaxY
 	bne @Loop
@@ -344,12 +345,12 @@ Loop:
 	rts
 .endproc
 
-.proc CopyTileMapBufferToVRAM
+.proc CopyTileMapBufferRowToVRAM
 	; We're going to copy 64 map tiles into VRAM.  The buffer is laid out so that the
 	; tiles are aligned with the Mode 7 scroll, so there's no offsetting necessary
 	; here, and the two rows of tilemaps are contiguous in memory.  So one DMA shot
 	; straight into VRAM, 256 bytes.
-	; The Y register holds the map row to copy into.
+	; The Y register holds the map row to copy from.
 	php
 	rep #$20                    ; A to 16-bit
 	tya
@@ -373,6 +374,17 @@ Loop:
 	sta MDMAEN                  ; enable
 	plp
 	rts
+.endproc
+
+.proc CopyTileMapBufferColumnToVRAM
+	; Same as the above function, except we're doing a column of map tiles.  This will
+	; need to be two DMA transfers, one for each column of 8x8 characters.
+	; The X register holds the map column to copy from.
+.endproc
+
+.proc CopyTileMapBufferToVRAM
+	; Check if the tilemap buffer is dirty, then determine whether to
+	; copy a row or column, and do so.
 .endproc
 
 .proc LoadOverworldSprites
@@ -532,10 +544,85 @@ DoneMoving:
 	bne Done         ; if it wasn't evenly divisible by 16, we're still walking
 	ldx #$00         ; otherwise we stop walking
 	stx MOVEDIR
-	; if we stopped walking, we landed on a square, so run those checks
+	jsr LandedOnSquare
 
 Done:
 	jsr SetOverworldCharacterObj
+	rts
+.endproc
+
+.proc LandedOnSquare
+	; First thing is to load map data into WRAM and map graphics into VRAM.
+	; We decompress a new map row into WRAM if we were walking up or down.
+	sep #$20                  ; set A to 8-bit
+	lda FACEDIR
+CheckUp:
+	cmp #DirUp
+	bne CheckDown
+	rep #$20                  ; A to 16-bit
+	lda MAPPOSY               ; we have to calculate the Y coordinate
+	lsr
+	lsr
+	lsr
+	lsr
+	sep #$20                  ; A back to 8-bit
+	clc
+	sbc #$21                  ; 33 rows up
+	jsr DecompressMapRow
+	jsr CopyMapRowToBuffer
+	jmp CheckEvent
+
+CheckDown:
+	cmp #DirDown
+	bne CheckLeft
+	rep #$20                  ; A to 16-bit
+	lda MAPPOSY               ; we have to calculate the Y coordinate
+	lsr
+	lsr
+	lsr
+	lsr
+	sep #$20                  ; A back to 8-bit
+	clc
+	adc #$1e                  ; 30 rows down
+	jsr DecompressMapRow
+	jsr CopyMapRowToBuffer
+	jmp CheckEvent
+
+	; If we're going left or right, the map data is already loaded, we just need
+	; to copy graphics into VRAM.
+CheckLeft:
+	cmp #DirLeft
+	bne CheckRight
+	rep #$20                  ; A to 16-bit
+	lda MAPPOSX               ; we have to calculate the X coordinate
+	lsr
+	lsr
+	lsr
+	lsr
+	sep #$20                  ; A back to 8-bit
+	clc
+	sbc #$1f                  ; 31 columns left
+	jsr CopyMapColumnToBuffer
+	jmp CheckEvent
+CheckRight:
+	cmp #DirRight             ; theoretically, we don't need this
+	bne CheckEvent            ; or this
+	rep #$20                  ; A to 16-bit
+	lda MAPPOSX               ; we have to calculate the X coordinate
+	lsr
+	lsr
+	lsr
+	lsr
+	sep #$20                  ; A back to 8-bit
+	clc
+	adc #$20                  ; 32 columns right
+	jsr CopyMapColumnToBuffer
+	jmp CheckEvent
+
+	; Then we check to see if we triggered an event, like entering a cave or town.
+CheckEvent:
+	; Finally, check for an enemy encounter.
+CheckEncounter:
 	rts
 .endproc
 

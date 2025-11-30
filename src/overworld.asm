@@ -359,8 +359,9 @@ Loop:
 	sta VMADDL                  ; is the VRAM address
 	rep #$10                    ; X,Y to 16-bit
 	sep #$20                    ; A to 8-bit
-	stz MDMAEN                  ; reset DMA
 	stz VMAINC                  ; VRAM increment on write to VMDATAL
+	stz MDMAEN                  ; reset DMA
+
 	lda #<VMDATAL               ; write to VRAM low register (Mode 7 tilemaps)
 	sta DMA0ADDB
 	ldx #TileMapBuffer
@@ -370,9 +371,14 @@ Loop:
 	ldx #$0100                  ; write 256 bytes
 	stx DMA0AMTL
 	stz DMA0PARAM               ; configure DMA0 for A->B, inc A address, 1 byte to 1 register
+
 	lda #$01                    ; DMA0 channel
 	sta MDMAEN                  ; enable
 	plp
+	rts
+.endproc
+
+.proc CopyMapColumnToBuffer
 	rts
 .endproc
 
@@ -380,11 +386,60 @@ Loop:
 	; Same as the above function, except we're doing a column of map tiles.  This will
 	; need to be two DMA transfers, one for each column of 8x8 characters.
 	; The X register holds the map column to copy from.
+	php
+	rep #$20                    ; A to 16-bit
+	tax
+	and #$003f                  ; column mod 64
+	asl
+	asl                         ; times 4
+	sta VMADDL                  ; is the VRAM address for the left column
+	pha                         ; save this for later
+
+	rep #$10                    ; X,Y to 16-bit
+	sep #$20                    ; A to 8-bit
+	lda #$02
+	sta VMAINC                  ; increment VRAM address by $80 (one row)
+	stz MDMAEN                  ; reset DMA
+	lda #<VMDATAL               ; write to VRAM low register (Mode 7 tilemaps)
+	sta DMA0ADDB
+	ldy #TileMapBuffer
+	sty DMA0ADDAL               ; read from the tilemap buffer
+	lda #OverworldMapBank       ; which is in this bank
+	sta DMA0ADDAH
+	ldy #$0080                  ; write 128 bytes
+	sty DMA0AMTL
+	stz DMA0PARAM               ; configure DMA0 for A->B, inc A address, 1 byte to 1 register
+	lda #$01                    ; DMA0 channel
+	sta MDMAEN                  ; enable
+
+	; Copy the right column
+	rep #$20                    ; A to 16-bit
+	pla                         ; fetch the VRAM address again
+	adc #$02                    ; add 2 bytes to move over one column
+	sta VMADDL                  ; this is the VRAM address for the right column
+	sep #$20                    ; A to 8-bit
+	stz MDMAEN                  ; reset DMA
+;   I think this can all be skipped because it's already configured above
+;	lda #<VMDATAL               ; write to VRAM low register (Mode 7 tilemaps)
+;	sta DMA0ADDB
+;	ldy #TileMapBuffer
+;	sty DMA0ADDAL               ; read from the tilemap buffer
+;	lda #OverworldMapBank       ; which is in this bank
+;	sta DMA0ADDAH
+;	ldy #$0080                  ; write 128 bytes
+;	sty DMA0AMTL
+;	stz DMA0PARAM               ; configure DMA0 for A->B, inc A address, 1 byte to 1 register
+	lda #$01                    ; DMA0 channel
+	sta MDMAEN                  ; enable
+
+	plp
+	rts
 .endproc
 
 .proc CopyTileMapBufferToVRAM
 	; Check if the tilemap buffer is dirty, then determine whether to
 	; copy a row or column, and do so.
+	rts
 .endproc
 
 .proc LoadOverworldSprites

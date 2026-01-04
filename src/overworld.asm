@@ -167,10 +167,10 @@ Loop:
 	lsr
 	sep #$30                    ; A,X,Y to 8-bit.  We'll wrap around the world correctly.
 	clc
-	adc #$1e                    ; max Y position is 30 rows higher (farther down)
+	adc #$1f                    ; max Y position is 31 rows higher (farther down)
 	sta TempMaxY
-	clc
-	sbc #$3f                    ; min Y position is 63 rows below max.  We go farther up than
+	sec
+	sbc #$40                    ; min Y position is 64 rows below max.  We go farther up than
 	tay                         ; down because we can see farther up due to the perspective.
 @Loop:
 	jsr DecompressMapRow           ; Decompress one row
@@ -179,6 +179,8 @@ Loop:
 	iny
 	cpy TempMaxY
 	bne @Loop
+	stz TileMapBufferDirty         ; this gets set by all the buffering, but we don't want to
+	                               ; copy the buffer again when we enable NMI
 	rts
 .endproc
 
@@ -242,6 +244,10 @@ Loop:
 	inx
 	stx TempSrc                ; remember where we were reading from
 	and #$00ff                 ; we only want one byte
+	bne :+
+	                           ; if the count is 0, the count is actually 256
+	lda #$0100                 ; so fix it (this would "just work" if X were 8-bit, but it isn't, and we need Y to be 16-bit)
+:
 	tax                        ; X will count down
 	sep #$20                   ; A back to 8-bit
 	lda #OverworldMapBank      ; set data bank to overworld destination
@@ -272,14 +278,21 @@ Loop:
 	rep #$20                   ; A 16-bit
 	tya
 	and #$3f                   ; row mod 64
-	xba                        ; times the row length (256)
+	sep #$20                   ; A 8-bit
+	pha                        ; save the row index
+	lda #$01                   ; 1 means the dirty buffer contains a row
+	sta TileMapBufferDirty
+	pla                        ; restore the row index
+	sta TileMapBufferIndex
+	rep #$20                   ; A 16-bit
+	xba                        ; multiply by the row length (256)
 	sta TempRowPointer
 	lda MAPPOSX                ; get the X position, divide by 16 to get the tile position
 	lsr
 	lsr
 	lsr
 	lsr
-	clc
+	sec
 	sbc #$001f                 ; subtract 31 to get the leftmost tile to copy
 	and #$00ff                 ; if we underflowed, we just want to wrap
 	clc
@@ -359,8 +372,9 @@ Loop:
 	sta VMADDL                  ; is the VRAM address
 	rep #$10                    ; X,Y to 16-bit
 	sep #$20                    ; A to 8-bit
-	stz MDMAEN                  ; reset DMA
 	stz VMAINC                  ; VRAM increment on write to VMDATAL
+	stz MDMAEN                  ; reset DMA
+
 	lda #<VMDATAL               ; write to VRAM low register (Mode 7 tilemaps)
 	sta DMA0ADDB
 	ldx #TileMapBuffer
@@ -370,8 +384,78 @@ Loop:
 	ldx #$0100                  ; write 256 bytes
 	stx DMA0AMTL
 	stz DMA0PARAM               ; configure DMA0 for A->B, inc A address, 1 byte to 1 register
+
 	lda #$01                    ; DMA0 channel
 	sta MDMAEN                  ; enable
+	plp
+	rts
+.endproc
+
+.proc CopyMapColumnToBuffer
+	; The value in the X register is the row we want to copy.
+	; This will be a little more straightforward than copying rows, because we can just start from
+	; the first decompressed map row and go to the last one; the correct rows are already in the
+	; correct place in the decompressed map data.
+	TempBufferPointerLeft  = $04
+	TempBufferPointerRight = $06
+	TempColPos             = $08
+	php
+	rep #$20                   ; A 16-bit
+	lda #TileMapBuffer
+	sta TempBufferPointerLeft  ; initialize the buffer pointer
+	clc
+	adc #$80                   ; initialize the other buffer pointer
+	sta TempBufferPointerRight
+	sep #$20                   ; A 8-bit
+	txa
+	sta TempColPos             ; save this
+	and #$3f                   ; mod 64 will be the column index into VRAM
+	sta TileMapBufferIndex     ; store the index
+	lda #$02                   ; 2 means the buffer has a column
+	sta TileMapBufferDirty
+
+	rep #$10                   ; X,Y to 16-bit
+	ldy #$00
+@Loop:
+	rep #$20                   ; A 16-bit
+	tya                        ; the row index
+	xba                        ; times 256
+	adc TempColPos             ; plus the column index
+	tax                        ; is the tile index
+
+	sep #$20                   ; A 8-bit
+	lda #OverworldMapBank      ; set data bank for the decompressed map
+	pha
+	plb
+	rep #$20                   ; A 16-bit
+	lda OverworldMap, X        ; get the tile
+	and #$00ff                 ; just one byte
+	tax                        ; put it in X
+
+	sep #$20                         ; A 8-bit
+	lda #BANK_MAIN                   ; set data bank for the tilemaps
+	pha
+	plb
+	lda OverworldTilemaps, X         ; get the upper-left character
+	sta (TempBufferPointerLeft)      ; save it
+	inc TempBufferPointerLeft
+	lda OverworldTilemaps + $100, X  ; get the lower-left character
+	sta (TempBufferPointerLeft)      ; save it
+	inc TempBufferPointerLeft
+	lda OverworldTilemaps + $80, X   ; get the upper-right character
+	sta (TempBufferPointerRight)     ; save it
+	inc TempBufferPointerRight
+	lda OverworldTilemaps + $180, X  ; get the lower-right character
+	sta (TempBufferPointerRight)     ; save it
+	inc TempBufferPointerRight
+
+	iny                              ; next row
+	cpy #$40                         ; do this 64 times
+	bne @Loop
+
+	lda #BANK_MAIN                   ; back to main bank
+	pha
+	plb
 	plp
 	rts
 .endproc
@@ -380,11 +464,80 @@ Loop:
 	; Same as the above function, except we're doing a column of map tiles.  This will
 	; need to be two DMA transfers, one for each column of 8x8 characters.
 	; The X register holds the map column to copy from.
+	php
+	rep #$20                    ; A to 16-bit
+	txa
+	and #$003f                  ; column mod 64
+	asl                         ; times 2
+	sta VMADDL                  ; is the VRAM address for the left column
+	pha                         ; save this for later
+
+	rep #$10                    ; X,Y to 16-bit
+	sep #$20                    ; A to 8-bit
+	lda #$02
+	sta VMAINC                  ; increment VRAM address by $80 (one row)
+	stz MDMAEN                  ; reset DMA
+	lda #<VMDATAL               ; write to VRAM low register (Mode 7 tilemaps)
+	sta DMA0ADDB
+	ldy #TileMapBuffer
+	sty DMA0ADDAL               ; read from the tilemap buffer
+	lda #OverworldMapBank       ; which is in this bank
+	sta DMA0ADDAH
+	ldy #$0080                  ; write 128 bytes
+	sty DMA0AMTL
+	stz DMA0PARAM               ; configure DMA0 for A->B, inc A address, 1 byte to 1 register
+	lda #$01                    ; DMA0 channel
+	sta MDMAEN                  ; enable
+
+	; Copy the right column
+	rep #$20                    ; A to 16-bit
+	pla                         ; fetch the VRAM address again
+	adc #$01                    ; add 2 bytes to move over one column
+	sta VMADDL                  ; this is the VRAM address for the right column
+	sep #$20                    ; A to 8-bit
+	stz MDMAEN                  ; reset DMA
+;   I think this can all be skipped because it's already configured above
+;	lda #<VMDATAL               ; write to VRAM low register (Mode 7 tilemaps)
+;	sta DMA0ADDB
+;	ldy #TileMapBuffer
+;	sty DMA0ADDAL               ; read from the tilemap buffer
+;	lda #OverworldMapBank       ; which is in this bank
+;	sta DMA0ADDAH
+;   We need to reset the byte count, though
+	ldy #$0080                  ; write 128 bytes
+	sty DMA0AMTL
+;	stz DMA0PARAM               ; configure DMA0 for A->B, inc A address, 1 byte to 1 register
+	lda #$01                    ; DMA0 channel
+	sta MDMAEN                  ; enable
+
+	plp
+	rts
 .endproc
 
 .proc CopyTileMapBufferToVRAM
 	; Check if the tilemap buffer is dirty, then determine whether to
 	; copy a row or column, and do so.
+	php
+	sep #$20                    ; A 8-bit
+	rep #$10                    ; X,Y 16-bit
+	lda TileMapBufferDirty
+	cmp #$01
+	bne CheckColumn
+	ldy TileMapBufferIndex
+	jsr CopyTileMapBufferRowToVRAM
+	bra Done
+
+CheckColumn:
+	cmp #$02
+	bne Done
+	ldx TileMapBufferIndex
+	jsr CopyTileMapBufferColumnToVRAM
+	; bra Done
+
+Done:
+	stz TileMapBufferDirty      ; zero the dirty flag
+	plp
+	rts
 .endproc
 
 .proc LoadOverworldSprites
@@ -557,6 +710,7 @@ Done:
 	sep #$20                  ; set A to 8-bit
 	lda FACEDIR
 CheckUp:
+.a8
 	cmp #DirUp
 	bne CheckDown
 	rep #$20                  ; A to 16-bit
@@ -565,14 +719,16 @@ CheckUp:
 	lsr
 	lsr
 	lsr
-	sep #$20                  ; A back to 8-bit
-	clc
+	sec
 	sbc #$21                  ; 33 rows up
+	and #$00ff                ; wrap around
+	tay                       ; calling convention for passing the row
 	jsr DecompressMapRow
 	jsr CopyMapRowToBuffer
 	jmp CheckEvent
 
 CheckDown:
+.a8
 	cmp #DirDown
 	bne CheckLeft
 	rep #$20                  ; A to 16-bit
@@ -581,9 +737,10 @@ CheckDown:
 	lsr
 	lsr
 	lsr
-	sep #$20                  ; A back to 8-bit
 	clc
 	adc #$1e                  ; 30 rows down
+	and #$00ff                ; wrap around
+	tay                       ; calling convention for passing the row
 	jsr DecompressMapRow
 	jsr CopyMapRowToBuffer
 	jmp CheckEvent
@@ -591,6 +748,7 @@ CheckDown:
 	; If we're going left or right, the map data is already loaded, we just need
 	; to copy graphics into VRAM.
 CheckLeft:
+.a8
 	cmp #DirLeft
 	bne CheckRight
 	rep #$20                  ; A to 16-bit
@@ -599,12 +757,14 @@ CheckLeft:
 	lsr
 	lsr
 	lsr
-	sep #$20                  ; A back to 8-bit
-	clc
+	sec
 	sbc #$1f                  ; 31 columns left
+	and #$00ff                ; wrap around
+	tax                       ; calling convention for passing the column
 	jsr CopyMapColumnToBuffer
 	jmp CheckEvent
 CheckRight:
+.a8
 	cmp #DirRight             ; theoretically, we don't need this
 	bne CheckEvent            ; or this
 	rep #$20                  ; A to 16-bit
@@ -613,9 +773,10 @@ CheckRight:
 	lsr
 	lsr
 	lsr
-	sep #$20                  ; A back to 8-bit
 	clc
 	adc #$20                  ; 32 columns right
+	and #$00ff                ; wrap around
+	tax                       ; calling convention for passing the column
 	jsr CopyMapColumnToBuffer
 	jmp CheckEvent
 

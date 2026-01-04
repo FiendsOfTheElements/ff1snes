@@ -379,6 +379,70 @@ Loop:
 .endproc
 
 .proc CopyMapColumnToBuffer
+	; The value in the X register is the row we want to copy.
+	; This will be a little more straightforward than copying rows, because we can just start from
+	; the first decompressed map row and go to the last one; the correct rows are already in the
+	; correct place in the decompressed map data.
+	TempBufferPointer = $04
+	TempColPos        = $08
+	phx
+	php
+	rep #$20                   ; A 16-bit
+	txa
+	and #$3f                   ; column mod 64
+	sta TempColPos             ; save this
+	lda #TileMapBuffer
+	sta TempBufferPointer      ; initialize the buffer pointer
+
+	rep #$10                   ; X,Y to 16-bit
+	ldy #$00
+@Loop:
+	rep #$20                   ; A 16-bit
+	tya                        ; the row index
+	asl
+	asl
+	asl
+	asl
+	asl
+	asl                        ; times 64
+	adc TempColPos             ; plus the column index
+	tax                        ; is the tile index
+
+	sep #$20                   ; A 8-bit
+	lda #OverworldMapBank      ; set data bank for the decompressed map
+	pha
+	plb
+	rep #$20                   ; A 16-bit
+	lda OverworldMap, X        ; get the tile
+	and #$00ff                 ; just one byte
+	tax                        ; put it in X
+
+	sep #$20                         ; A 8-bit
+	lda #BANK_MAIN                   ; set data bank for the tilemaps
+	pha
+	plb
+	lda OverworldTilemaps, X         ; get the upper-left character
+	sta TempBufferPointer            ; save it
+	inc TempBufferPointer            ; bump the pointer
+	lda OverworldTilemaps + $100, X  ; get the lower-left character
+	sta TempBufferPointer            ; save it
+	inc TempBufferPointer            ; bump the pointer
+	lda OverworldTilemaps + $80, X   ; get the upper-right character
+	sta TempBufferPointer            ; save it
+	inc TempBufferPointer            ; bump the pointer
+	lda OverworldTilemaps + $180, X  ; get the lower-right character
+	sta TempBufferPointer            ; save it
+	inc TempBufferPointer            ; bump the pointer
+
+	iny                              ; next row
+	cpy #$40                         ; do this 64 times
+	bne @Loop
+
+	lda #BANK_MAIN                   ; back to main bank
+	pha
+	plb
+	plp
+	plx
 	rts
 .endproc
 

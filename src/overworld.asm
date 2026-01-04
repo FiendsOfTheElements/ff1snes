@@ -422,16 +422,16 @@ Loop:
 	pha
 	plb
 	lda OverworldTilemaps, X         ; get the upper-left character
-	sta TempBufferPointer            ; save it
+	sta (TempBufferPointer)          ; save it
 	inc TempBufferPointer            ; bump the pointer
 	lda OverworldTilemaps + $100, X  ; get the lower-left character
-	sta TempBufferPointer            ; save it
+	sta (TempBufferPointer)          ; save it
 	inc TempBufferPointer            ; bump the pointer
 	lda OverworldTilemaps + $80, X   ; get the upper-right character
-	sta TempBufferPointer            ; save it
+	sta (TempBufferPointer)          ; save it
 	inc TempBufferPointer            ; bump the pointer
 	lda OverworldTilemaps + $180, X  ; get the lower-right character
-	sta TempBufferPointer            ; save it
+	sta (TempBufferPointer)          ; save it
 	inc TempBufferPointer            ; bump the pointer
 
 	iny                              ; next row
@@ -687,6 +687,7 @@ CheckUp:
 	sep #$20                  ; A back to 8-bit
 	clc
 	sbc #$21                  ; 33 rows up
+	tay                       ; calling convention for passing the row
 	jsr DecompressMapRow
 	jsr CopyMapRowToBuffer
 	jmp CheckEvent
@@ -703,6 +704,7 @@ CheckDown:
 	sep #$20                  ; A back to 8-bit
 	clc
 	adc #$1e                  ; 30 rows down
+	tay                       ; calling convention for passing the row
 	jsr DecompressMapRow
 	jsr CopyMapRowToBuffer
 	jmp CheckEvent
@@ -721,6 +723,7 @@ CheckLeft:
 	sep #$20                  ; A back to 8-bit
 	clc
 	sbc #$1f                  ; 31 columns left
+	tax                       ; calling convention for passing the column
 	jsr CopyMapColumnToBuffer
 	jmp CheckEvent
 CheckRight:
@@ -735,6 +738,7 @@ CheckRight:
 	sep #$20                  ; A back to 8-bit
 	clc
 	adc #$20                  ; 32 columns right
+	tax                       ; calling convention for passing the column
 	jsr CopyMapColumnToBuffer
 	jmp CheckEvent
 

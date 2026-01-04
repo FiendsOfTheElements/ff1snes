@@ -21,7 +21,9 @@ JoyHeld1         = $0304     ; held buttons read from joypad 1
 
 OamMirror        = $05E0     ; to $07FF, this gets DMA'd to OAM every frame
 
-TileMapBuffer    = $1800     ; this is a buffer from which a row or column of tiles will be DMA'd into VRAM, 256 bytes
+TileMapBuffer      = $1800   ; this is a buffer from which a row or column of tiles will be DMA'd into VRAM, 256 bytes
+TileMapBufferDirty = $1900   ; this stores a 1 if the tilemap buffer contains a row, a 2 if it stores a column, and a 0 otherwise
+TileMapBufferIndex = $1901   ; this stores the index of the row or column contained in the buffer, 0 to 63
 
 StackBase        = $1E00     ; expected to be no more than 512 bytes, grows from $1FFF downward
 

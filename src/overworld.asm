@@ -179,6 +179,8 @@ Loop:
 	iny
 	cpy TempMaxY
 	bne @Loop
+	stz TileMapBufferDirty         ; this gets set by all the buffering, but we don't want to
+	                               ; copy the buffer again when we enable NMI
 	rts
 .endproc
 
@@ -272,7 +274,14 @@ Loop:
 	rep #$20                   ; A 16-bit
 	tya
 	and #$3f                   ; row mod 64
-	xba                        ; times the row length (256)
+	sep #$20                   ; A 8-bit
+	pha                        ; save the row index
+	lda #$01                   ; 1 means the dirty buffer contains a row
+	sta TileMapBufferDirty
+	pla                        ; restore the row index
+	sta TileMapBufferIndex
+	rep #$20                   ; A 16-bit
+	xba                        ; multiply by the row length (256)
 	sta TempRowPointer
 	lda MAPPOSX                ; get the X position, divide by 16 to get the tile position
 	lsr
@@ -383,28 +392,30 @@ Loop:
 	; This will be a little more straightforward than copying rows, because we can just start from
 	; the first decompressed map row and go to the last one; the correct rows are already in the
 	; correct place in the decompressed map data.
-	TempBufferPointer = $04
-	TempColPos        = $08
-	phx
+	TempBufferPointerLeft  = $04
+	TempBufferPointerRight = $06
+	TempColPos             = $08
 	php
 	rep #$20                   ; A 16-bit
-	txa
-	and #$3f                   ; column mod 64
-	sta TempColPos             ; save this
 	lda #TileMapBuffer
-	sta TempBufferPointer      ; initialize the buffer pointer
+	sta TempBufferPointerLeft  ; initialize the buffer pointer
+	clc
+	adc #$80                   ; initialize the other buffer pointer
+	sta TempBufferPointerRight
+	sep #$20                   ; A 8-bit
+	txa
+	sta TempColPos             ; save this
+	and #$3f                   ; mod 64 will be the column index into VRAM
+	sta TileMapBufferIndex     ; store the index
+	lda #$02                   ; 2 means the buffer has a column
+	sta TileMapBufferDirty
 
 	rep #$10                   ; X,Y to 16-bit
 	ldy #$00
 @Loop:
 	rep #$20                   ; A 16-bit
 	tya                        ; the row index
-	asl
-	asl
-	asl
-	asl
-	asl
-	asl                        ; times 64
+	xba                        ; times 256
 	adc TempColPos             ; plus the column index
 	tax                        ; is the tile index
 
@@ -422,17 +433,17 @@ Loop:
 	pha
 	plb
 	lda OverworldTilemaps, X         ; get the upper-left character
-	sta (TempBufferPointer)          ; save it
-	inc TempBufferPointer            ; bump the pointer
+	sta (TempBufferPointerLeft)      ; save it
+	inc TempBufferPointerLeft
 	lda OverworldTilemaps + $100, X  ; get the lower-left character
-	sta (TempBufferPointer)          ; save it
-	inc TempBufferPointer            ; bump the pointer
+	sta (TempBufferPointerLeft)      ; save it
+	inc TempBufferPointerLeft
 	lda OverworldTilemaps + $80, X   ; get the upper-right character
-	sta (TempBufferPointer)          ; save it
-	inc TempBufferPointer            ; bump the pointer
+	sta (TempBufferPointerRight)     ; save it
+	inc TempBufferPointerRight
 	lda OverworldTilemaps + $180, X  ; get the lower-right character
-	sta (TempBufferPointer)          ; save it
-	inc TempBufferPointer            ; bump the pointer
+	sta (TempBufferPointerRight)     ; save it
+	inc TempBufferPointerRight
 
 	iny                              ; next row
 	cpy #$40                         ; do this 64 times
@@ -442,7 +453,6 @@ Loop:
 	pha
 	plb
 	plp
-	plx
 	rts
 .endproc
 
@@ -452,10 +462,9 @@ Loop:
 	; The X register holds the map column to copy from.
 	php
 	rep #$20                    ; A to 16-bit
-	tax
+	txa
 	and #$003f                  ; column mod 64
-	asl
-	asl                         ; times 4
+	asl                         ; times 2
 	sta VMADDL                  ; is the VRAM address for the left column
 	pha                         ; save this for later
 
@@ -479,7 +488,7 @@ Loop:
 	; Copy the right column
 	rep #$20                    ; A to 16-bit
 	pla                         ; fetch the VRAM address again
-	adc #$02                    ; add 2 bytes to move over one column
+	adc #$01                    ; add 2 bytes to move over one column
 	sta VMADDL                  ; this is the VRAM address for the right column
 	sep #$20                    ; A to 8-bit
 	stz MDMAEN                  ; reset DMA
@@ -490,8 +499,9 @@ Loop:
 ;	sty DMA0ADDAL               ; read from the tilemap buffer
 ;	lda #OverworldMapBank       ; which is in this bank
 ;	sta DMA0ADDAH
-;	ldy #$0080                  ; write 128 bytes
-;	sty DMA0AMTL
+;   We need to reset the byte count, though
+	ldy #$0080                  ; write 128 bytes
+	sty DMA0AMTL
 ;	stz DMA0PARAM               ; configure DMA0 for A->B, inc A address, 1 byte to 1 register
 	lda #$01                    ; DMA0 channel
 	sta MDMAEN                  ; enable
@@ -503,6 +513,26 @@ Loop:
 .proc CopyTileMapBufferToVRAM
 	; Check if the tilemap buffer is dirty, then determine whether to
 	; copy a row or column, and do so.
+	php
+	sep #$20                    ; A 8-bit
+	rep #$10                    ; X,Y 16-bit
+	lda TileMapBufferDirty
+	cmp #$01
+	bne CheckColumn
+	ldy TileMapBufferIndex
+	jsr CopyTileMapBufferRowToVRAM
+	bra Done
+
+CheckColumn:
+	cmp #$02
+	bne Done
+	ldx TileMapBufferIndex
+	jsr CopyTileMapBufferColumnToVRAM
+	; bra Done
+
+Done:
+	stz TileMapBufferDirty      ; zero the dirty flag
+	plp
 	rts
 .endproc
 

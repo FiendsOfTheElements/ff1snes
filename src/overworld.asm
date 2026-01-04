@@ -167,10 +167,10 @@ Loop:
 	lsr
 	sep #$30                    ; A,X,Y to 8-bit.  We'll wrap around the world correctly.
 	clc
-	adc #$1e                    ; max Y position is 30 rows higher (farther down)
+	adc #$1f                    ; max Y position is 31 rows higher (farther down)
 	sta TempMaxY
-	clc
-	sbc #$3f                    ; min Y position is 63 rows below max.  We go farther up than
+	sec
+	sbc #$40                    ; min Y position is 64 rows below max.  We go farther up than
 	tay                         ; down because we can see farther up due to the perspective.
 @Loop:
 	jsr DecompressMapRow           ; Decompress one row
@@ -244,6 +244,10 @@ Loop:
 	inx
 	stx TempSrc                ; remember where we were reading from
 	and #$00ff                 ; we only want one byte
+	bne :+
+	                           ; if the count is 0, the count is actually 256
+	lda #$0100                 ; so fix it (this would "just work" if X were 8-bit, but it isn't, and we need Y to be 16-bit)
+:
 	tax                        ; X will count down
 	sep #$20                   ; A back to 8-bit
 	lda #OverworldMapBank      ; set data bank to overworld destination
@@ -288,7 +292,7 @@ Loop:
 	lsr
 	lsr
 	lsr
-	clc
+	sec
 	sbc #$001f                 ; subtract 31 to get the leftmost tile to copy
 	and #$00ff                 ; if we underflowed, we just want to wrap
 	clc
@@ -706,6 +710,7 @@ Done:
 	sep #$20                  ; set A to 8-bit
 	lda FACEDIR
 CheckUp:
+.a8
 	cmp #DirUp
 	bne CheckDown
 	rep #$20                  ; A to 16-bit
@@ -714,15 +719,16 @@ CheckUp:
 	lsr
 	lsr
 	lsr
-	sep #$20                  ; A back to 8-bit
-	clc
+	sec
 	sbc #$21                  ; 33 rows up
+	and #$00ff                ; wrap around
 	tay                       ; calling convention for passing the row
 	jsr DecompressMapRow
 	jsr CopyMapRowToBuffer
 	jmp CheckEvent
 
 CheckDown:
+.a8
 	cmp #DirDown
 	bne CheckLeft
 	rep #$20                  ; A to 16-bit
@@ -731,9 +737,9 @@ CheckDown:
 	lsr
 	lsr
 	lsr
-	sep #$20                  ; A back to 8-bit
 	clc
 	adc #$1e                  ; 30 rows down
+	and #$00ff                ; wrap around
 	tay                       ; calling convention for passing the row
 	jsr DecompressMapRow
 	jsr CopyMapRowToBuffer
@@ -742,6 +748,7 @@ CheckDown:
 	; If we're going left or right, the map data is already loaded, we just need
 	; to copy graphics into VRAM.
 CheckLeft:
+.a8
 	cmp #DirLeft
 	bne CheckRight
 	rep #$20                  ; A to 16-bit
@@ -750,13 +757,14 @@ CheckLeft:
 	lsr
 	lsr
 	lsr
-	sep #$20                  ; A back to 8-bit
-	clc
+	sec
 	sbc #$1f                  ; 31 columns left
+	and #$00ff                ; wrap around
 	tax                       ; calling convention for passing the column
 	jsr CopyMapColumnToBuffer
 	jmp CheckEvent
 CheckRight:
+.a8
 	cmp #DirRight             ; theoretically, we don't need this
 	bne CheckEvent            ; or this
 	rep #$20                  ; A to 16-bit
@@ -765,9 +773,9 @@ CheckRight:
 	lsr
 	lsr
 	lsr
-	sep #$20                  ; A back to 8-bit
 	clc
 	adc #$20                  ; 32 columns right
+	and #$00ff                ; wrap around
 	tax                       ; calling convention for passing the column
 	jsr CopyMapColumnToBuffer
 	jmp CheckEvent

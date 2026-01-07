@@ -22,6 +22,9 @@ OverworldSprites:    .incbin "graphics/overworld-sprites.4bpp"   ; 12 KB
 
 .segment "CODE"
 
+OverworldTilemaps:       .incbin "data/overworld-tilemaps.bin"
+OverworldTileProperties: .incbin "data/overworld-tileproperties.bin"
+
 OverworldPalette:
 	COLOR  0,  0,  0
 	COLOR  0, 21,  0
@@ -39,8 +42,6 @@ OverworldPalette:
 	COLOR  0, 21,  0
 	COLOR 23, 31,  3
 	COLOR  0, 21,  0
-
-OverworldTilemaps: .incbin "data/overworld-tilemaps.bin"
 
 OverworldSpritePalette:
 	COLOR  0,  0,  0

@@ -30,3 +30,19 @@ StackBase        = $1E00     ; expected to be no more than 512 bytes, grows from
 ; High WRAM locations
 OverworldMapBank = $7E
 OverworldMap     = $4000     ; store the decompressed overworld map from $7E:4000-7E:7FFF (64 rows x 256 columns, 4096 bytes)
+
+; Overworld tile properties
+OWTP_NoWalk       = $0001
+OWTP_NoCanoe      = $0002
+OWTP_NoShip       = $0004
+OWTP_NoAirship    = $0008 ; can't land
+OWTP_Forest       = $0010
+OWTP_Dock         = $0020
+OWTP_EventMask    = $00C0
+OWTP_EventChime   = $0040 ; need chime to enter
+OWTP_EventCaravan = $0080
+OWTP_EventAirship = $00C0 ; can use the FLOATER to raise the airship from here
+OWTP_Fight        = $4000
+OWTP_FightRiver   = $4100
+OWTP_FightOcean   = $4200
+OWTP_Teleport     = $8000

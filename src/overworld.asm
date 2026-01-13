@@ -613,7 +613,7 @@ Loop:
 	sep #$10                ; set X,Y to 8-bit
 
 	ldx MOVEDIR             ; see if we're already moving
-	bne Move
+	bne MoveOK
 
 	; check the dpad, if any of the directional buttons are pressed,
 	; move the screen accordingly
@@ -623,8 +623,7 @@ CheckUpButton:
 	beq CheckDownButton
 	ldx #DirUp
 	stx FACEDIR
-	; check if we are able to move up
-	stx MOVEDIR
+	bra Move
 
 CheckDownButton:
 	lda JoyPad1
@@ -632,8 +631,7 @@ CheckDownButton:
 	beq CheckLeftButton
 	ldx #DirDown
 	stx FACEDIR
-	; check if we are able to move down
-	stx MOVEDIR
+	bra Move
 
 CheckLeftButton:
 	lda JoyPad1
@@ -641,8 +639,7 @@ CheckLeftButton:
 	beq CheckRightButton
 	ldx #DirLeft
 	stx FACEDIR
-	; check if we are able to move left
-	stx MOVEDIR
+	bra Move
 
 CheckRightButton:
 	lda JoyPad1
@@ -650,11 +647,16 @@ CheckRightButton:
 	beq Done
 	ldx #DirRight
 	stx FACEDIR
-	; check if we are able to move right
-	stx MOVEDIR
+;	bra Move
 
 Move:
-	ldx MOVEDIR
+	jsr GetTileMoveCoords
+	jsr CanMove
+	cmp #$0001
+	bne Done
+MoveOK:
+	ldx FACEDIR
+	stx MOVEDIR
 
 MoveUp:
 	cpx #DirUp
@@ -663,7 +665,7 @@ MoveUp:
 	dec
 	and #$0fff       ; wrap around
 	sta MAPPOSY
-	jmp DoneMoving
+	bra DoneMoving
 
 MoveDown:
 	cpx #DirDown
@@ -672,7 +674,7 @@ MoveDown:
 	inc
 	and #$0fff       ; wrap around
 	sta MAPPOSY
-	jmp DoneMoving
+	bra DoneMoving
 
 MoveLeft:
 	cpx #DirLeft
@@ -681,7 +683,7 @@ MoveLeft:
 	dec
 	and #$0fff       ; wrap around
 	sta MAPPOSX
-	jmp DoneMoving
+	bra DoneMoving
 
 MoveRight:
 	cpx #DirRight
@@ -690,7 +692,7 @@ MoveRight:
 	inc
 	and #$0fff       ; wrap around
 	sta MAPPOSX
-	jmp DoneMoving
+;	bra DoneMoving
 
 DoneMoving:
 	and #$000f       ; get the count of pixels walked
@@ -703,6 +705,94 @@ DoneMoving:
 Done:
 	jsr SetOverworldCharacterObj
 	rts
+.endproc
+
+.proc GetTileMoveCoords
+	; Loads the coordinates of the map tile we are walking toward into A as $YYXX.
+	php
+	sep #$30         ; X,Y are 8-bit
+	ldx FACEDIR
+	rep #$20         ; A is 16-bit
+	lda MAPPOSX
+	lsr
+	lsr
+	lsr
+	lsr
+	sep #$20         ; A is 8-bit
+	sta 0, S         ; put the X coordinate on the stack
+	cpx #DirLeft     ; if we're going left
+	bne :+
+	dec              ; decrease the X coordinate
+	sta 0, S
+	bra @Vertical
+:
+	cpx #DirRight    ; if we're going right
+	bne @Vertical
+	inc              ; increase the X coordinate
+	sta 0, S
+@Vertical:
+	rep #$20         ; A is 16-bit
+	lda MAPPOSY
+	lsr
+	lsr
+	lsr
+	lsr
+	sep #$20         ; A is 8-bit
+	cpx #DirUp       ; if we're going up
+	bne :+
+	dec              ; decrease the Y coordinate
+	bra @Combine
+:
+	cpx #DirDown     ; if we're going down
+	bne @Combine
+	inc              ; increase the Y coordinate
+@Combine:
+	rep #$20         ; A is 16-bit
+	and #$00ff       ; probably not needed, but we don't want any weird residual high byte
+	xba              ; put the Y coordinate in the high byte
+	sep #$20         ; A is 8-bit
+	clc
+	adc 0, s         ; add the X coordinate
+	plp
+	rts
+.endproc
+
+.proc CanMove
+	; Test if we can move to a square whose coordinates are stored in A.
+	phx
+	php
+	rep #$30                  ; A,X,Y 16-bit
+	and #$3fff                ; Y-coordinate mod 64
+	tax
+	phb
+	sep #$20                  ; A 8-bit
+	lda #OverworldMapBank
+	pha
+	plb
+	lda OverworldMap, X       ; get the tile
+	rep #$20                  ; A 16-bit again
+	and #$00ff                ; so we can clear the high byte
+	clc
+	asl                       ; and multiply by 2
+	tax                       ; before putting it in X
+	sep #$20                  ; A 8-bit
+	lda #BANK_MAIN
+	pha
+	plb
+	rep #$20                  ; A 16-bit
+	lda OverworldTileProperties, X ; get the tile properties
+	and #OWTP_NoWalk
+	bne @CantWalk
+	lda #$0001
+	bra @Done
+@CantWalk:
+	lda #$0000
+@Done:
+	plb
+	plp
+	plx
+	rts
+
 .endproc
 
 .proc LandedOnSquare

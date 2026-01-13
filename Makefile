@@ -3,7 +3,7 @@ OBJ = $(patsubst src/%.asm, obj/%.o, $(SRC))
 INC = $(wildcard includes/*.inc)
 
 ff1snes.smc: $(OBJ)
-	ld65 -C memory-map.cfg $(OBJ) -o ff1snes.smc
+	ld65 -C memory-map.cfg --dbgfile ff1snes.dbg $(OBJ) -o ff1snes.smc
 
 rip:
 	dotnet run --project utils/ff1ripper
@@ -13,7 +13,7 @@ rip:
 
 obj/%.o: src/%.asm $(INC) rip
 	@mkdir -p obj
-	ca65 --cpu 65816 --include-dir includes --bin-include-dir assets --smart -o $@ $<
+	ca65 --cpu 65816 --include-dir includes --bin-include-dir assets --smart --debug-info -o $@ $<
 
 clean:
 	rm obj/*

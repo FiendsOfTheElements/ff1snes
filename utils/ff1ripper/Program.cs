@@ -1,5 +1,6 @@
 ﻿RipOverworldCharacters();
 RipOverworldMap();
+RipOverworldTileProperties();
 RipOverworldSprites();
 
 void RipOverworldCharacters()
@@ -98,6 +99,21 @@ void RipOverworldMap()
 		mapData[i] &= 0x7F; // these pointers are relative to 0x8000, but we want them to be zero-based
 	}
 	writeStream.Write(mapData, 0, mapData.Length); // Write the map to file
+
+	readStream.Close();
+	writeStream.Close();
+}
+
+void RipOverworldTileProperties()
+{
+	using var readStream = File.Open("ff1.nes", FileMode.Open, FileAccess.Read);
+	using var writeStream = File.Open("overworld-tileproperties.bin", FileMode.Create, FileAccess.Write);
+
+	// There are 128 tiles, each has 2 bytes of properties.
+	var tilePropertyData = new byte[0x100];
+	readStream.Position = 0x0010; // Overworld tile property data starts at the very beginning of the ROM
+	readStream.Read(tilePropertyData, 0, tilePropertyData.Length); // Read the entire tilemap
+	writeStream.Write(tilePropertyData, 0, tilePropertyData.Length); // Write the tilemap to file
 
 	readStream.Close();
 	writeStream.Close();

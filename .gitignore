@@ -1,12 +1,14 @@
 assets/
 obj/
-*.smc
-*.sym
 
 # Don't check in any ROMs.
 *.rom
 *.nes
 *.sfc
+*.smc
+# Debug symbols
+*.sym
+*.dbg
 
 # Build results
 [Dd]ebug/

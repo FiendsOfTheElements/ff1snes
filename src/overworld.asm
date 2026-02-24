@@ -61,20 +61,35 @@ OverworldSpritePalette:
 	COLOR 31, 31, 31
 	COLOR 30, 30, 10
 
-DirDown  = 1
+
+MAPPOSX  = $1000 ; position in pixels
+MAPPOSY  = $1002
+MAPANGLE = $1004 ; mode 7 angle of rotation in bytians (256 to a circle)
+MAPZOOM  = $1006 ; mode 7 zoom, fixed point 8.8
+
+DirDown  = 1     ; which direction are we moving or facing
 DirUp    = 2
 DirLeft  = 3
 DirRight = 4
-
-MAPPOSX  = $1000
-MAPPOSY  = $1002
-MAPANGLE = $1004
-MAPZOOM  = $1006
 MOVEDIR  = $1008
 FACEDIR  = $1009
 
-MAXZOOM  = $7F   ; zoom value is fixed point, where $0040 is 1.0
-MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
+Vehicle_Foot    = 1     ; it is not important that these be flags, they just need to be distinct
+Vehicle_Canoe   = 2     ; but I made them equal to the walkability flags, which might be useful
+Vehicle_Ship    = 4     ; we don't even need a specific value for "foot", just any value that
+Vehicle_Airship = 8     ; isn't the other values
+CURR_VEHICLE    = $100A ; are we in a vehicle?
+MOVE_SPEED      = $100B ; how many pixels per frame, 1 for walking, 2 for ship, 4 for airship
+CHARACTER_POS   = $100C ; 2 bytes, $YYXX map coordinates
+MOVE_TO_POS     = $100E ; 2 bytes, where are we moving to
+SHIP_POS        = $1010 ; 2 bytes
+AIRSHIP_POS     = $1012 ; 2 bytes
+
+START_POSITION   = $A599    ; start at $99, $A5, and the midpoint of the tile (+8 pixels)
+START_POSITION_X = $0998
+START_POSITION_Y = $0A58
+SHIP_INIT        = $A998    ; don't forget to move this to Pravoka
+AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 
 .proc LoadOverworld
 	sep #$20                ; set A to 8-bit
@@ -85,11 +100,19 @@ MINZOOM  = $20   ; we do this for precision reasons with mode 7 multiply
 	stz MOVEDIR             ; be still
 	lda #DirDown            ; face down
 	sta FACEDIR
+	lda Vehicle_Foot        ; be on foot
+	sta CURR_VEHICLE
 	rep #$30                ; A,X,Y to 16-bit
-	ldx #$0998              ; set the initial scroll
+	ldx #START_POSITION_X   ; set the initial scroll
 	stx MAPPOSX
-	ldy #$0A58
+	ldy #START_POSITION_Y
 	sty MAPPOSY
+	lda #START_POSITION     ; and map coords
+	sta CHARACTER_POS
+	lda #SHIP_INIT          ; and ship coords
+	sta SHIP_POS
+	lda #AIRSHIP_INIT       ; and airship coords
+	sta AIRSHIP_POS
 	stz MAPANGLE            ; initial rotation (none)
 	lda #$0040              ; initial zoom (1x)
 	sta MAPZOOM
@@ -708,85 +731,99 @@ Done:
 .endproc
 
 .proc GetTileMoveCoords
-	; Loads the coordinates of the map tile we are walking toward into A as $YYXX.
+	; Loads the coordinates of the map tile we are moving toward into A as $YYXX.
 	php
-	sep #$30         ; X,Y are 8-bit
+	sep #$30          ; X,Y are 8-bit
+	rep #$20          ; A is 16-bit
+	lda CHARACTER_POS ; get the position we're moving from
 	ldx FACEDIR
-	rep #$20         ; A is 16-bit
-	lda MAPPOSX
-	lsr
-	lsr
-	lsr
-	lsr
-	sep #$20         ; A is 8-bit
-	sta 0, S         ; put the X coordinate on the stack
-	cpx #DirLeft     ; if we're going left
-	bne :+
-	dec              ; decrease the X coordinate
-	sta 0, S
-	bra @Vertical
-:
-	cpx #DirRight    ; if we're going right
+	cpx #DirUp        ; if we're going up
+	bne @CheckDown
+	sec
+	sbc #$0100        ; decrease the Y coordinate
+	bra @Done
+@CheckDown:
+	cpx #DirDown      ; if we're going down
 	bne @Vertical
-	inc              ; increase the X coordinate
-	sta 0, S
-@Vertical:
-	rep #$20         ; A is 16-bit
-	lda MAPPOSY
-	lsr
-	lsr
-	lsr
-	lsr
-	sep #$20         ; A is 8-bit
-	cpx #DirUp       ; if we're going up
-	bne :+
-	dec              ; decrease the Y coordinate
-	bra @Combine
-:
-	cpx #DirDown     ; if we're going down
-	bne @Combine
-	inc              ; increase the Y coordinate
-@Combine:
-	rep #$20         ; A is 16-bit
-	and #$00ff       ; probably not needed, but we don't want any weird residual high byte
-	xba              ; put the Y coordinate in the high byte
-	sep #$20         ; A is 8-bit
 	clc
-	adc 0, s         ; add the X coordinate
+	adc #$0100        ; increase the Y coordinate
+	bra @Done
+@Vertical:
+	and #$ff00        ; save the Y coordinate, because we need to reset it in case we wrap
+	sta 0, S          ; put it on the stack
+	cpx #DirLeft      ; if we're going left
+	bne @CheckRight
+	dec               ; decrease the X coordinate
+	and #$00ff        ; isolate X
+	ora 0, S          ; get the Y coordinate back
+	bra @Done
+@CheckRight:
+	cpx #DirRight     ; if we're going right
+	bne @Done
+	inc               ; increase the X coordinate
+	and #$00ff        ; isolate X
+	ora 0, S          ; get the Y coordinate back
+@Done:
 	plp
 	rts
 .endproc
 
 .proc CanMove
 	; Test if we can move to a square whose coordinates are stored in A.
+	TempTileProp = $0A
 	phx
 	php
-	rep #$30                  ; A,X,Y 16-bit
-	and #$3fff                ; Y-coordinate mod 64
-	tax
-	phb
-	sep #$20                  ; A 8-bit
-	lda #OverworldMapBank
-	pha
-	plb
-	lda OverworldMap, X       ; get the tile
-	rep #$20                  ; A 16-bit again
-	and #$00ff                ; so we can clear the high byte
-	clc
-	asl                       ; and multiply by 2
-	tax                       ; before putting it in X
-	sep #$20                  ; A 8-bit
-	lda #BANK_MAIN
-	pha
-	plb
-	rep #$20                  ; A 16-bit
-	lda OverworldTileProperties, X ; get the tile properties
-	and #OWTP_NoWalk
+	sep #$10                  ; X,Y 8-bit
+	ldy CURR_VEHICLE          ; Get the vehicle we're in
+	cpy Vehicle_Airship       ; Is it the airship?
+	bne @NotAirship
+	bra @CanMove              ; If we're in the airship, we can move anywhere.
+@NotAirship:                  ; Otherwise, we need to know what tile we're moving to.
+	jsr GetTileProperties
+	sta TempTileProp          ; save them
+	sep #$10                  ; X,Y 8-bit
+	cpy Vehicle_Ship          ; Y still has the vehicle, is it the ship?
+	bne @CanMoveFoot
+@CanMoveShip:
+	and #OWTP_NoShip          ; can we sail?
+	bne @CantSail
+	bra @CanMove              ; Iiiiiiiiiiiiiiiii'm sailiiiiiiiiing awaaaaaaaaaaaaaaay
+@CantSail:
+	lda TempTileProp
+	and #OWTP_Dock            ; Are we docking?
+	beq @Dock
+	lda TempTileProp
+	and #OWTP_NoCanoe         ; I can row a boat, canoe?
+	bne @CantDock
+@Dock:
+	ldy Vehicle_Foot          ; set our vehicle to foot
+	sty CURR_VEHICLE
+	lda CHARACTER_POS         ; set the ship's location to where we are now
+	sta SHIP_POS
+	bra @CanMove              ; and we're walking
+@CantDock:
+	bra @CantMove
+@CanMoveFoot:
+	lda TempTileProp
+	and #OWTP_NoWalk          ; can we walk?
 	bne @CantWalk
-	lda #$0001
-	bra @Done
+	ldy Vehicle_Foot          ; make sure we're walking
+	sty CURR_VEHICLE          ; in case we're getting out of the canoe
+	bra @CanMove
 @CantWalk:
-	lda #$0000
+	lda TempTileProp
+	and #OWTP_NoCanoe         ; canoe?
+	bne @CantCanoe
+	bra @CanMove              ; we don't get in the canoe until we land on the square
+@CantCanoe:
+	lda MOVE_TO_POS
+	cmp SHIP_POS              ; are we getting on the ship?
+	beq @CanMove
+@CantMove:
+	lda #$0000                ; can't move
+	bra @Done
+@CanMove:
+	lda #$0001                ; can move
 @Done:
 	plb
 	plp
@@ -795,9 +832,46 @@ Done:
 
 .endproc
 
+.proc GetTileProperties
+	; For the map tile with coords $YYAA in the A register,
+	; return the tile properties in the A register.
+	php
+	rep #$30                  ; A,X,Y 16-bit
+	and #$3fff                ; Y-coordinate mod 64
+	tax
+	lda OverworldMapL, X      ; get the tile
+	and #$00ff                ; clear the high byte
+	clc
+	asl                       ; and multiply by 2
+	tax                       ; before putting it in X
+	lda OverworldTileProperties, X ; get the tile properties
+	plp
+	rts
+.endproc
+
 .proc LandedOnSquare
 	; First thing is to load map data into WRAM and map graphics into VRAM.
 	; We decompress a new map row into WRAM if we were walking up or down.
+	TempX = $00
+	TempY = $02
+	TempTileProp = $04
+	rep #$20                  ; A to 16-bit
+	lda MAPPOSX               ; we'll calculate the map's X coordinate
+	lsr                       ; by dividing the pixel position by 16
+	lsr
+	lsr
+	lsr
+	sta TempX
+	lda MAPPOSY               ; and the Y coordinate
+	lsr
+	lsr
+	lsr
+	lsr
+	sta TempY
+	xba                       ; put the Y coordinate in the high byte
+	ora TempX                 ; and the X coordinate in the low byte
+	sta CHARACTER_POS         ; store the character's position as $YYXX for reference
+
 	sep #$20                  ; set A to 8-bit
 	lda FACEDIR
 CheckUp:
@@ -805,11 +879,7 @@ CheckUp:
 	cmp #DirUp
 	bne CheckDown
 	rep #$20                  ; A to 16-bit
-	lda MAPPOSY               ; we have to calculate the Y coordinate
-	lsr
-	lsr
-	lsr
-	lsr
+	lda TempY
 	sec
 	sbc #$21                  ; 33 rows up
 	and #$00ff                ; wrap around
@@ -823,11 +893,7 @@ CheckDown:
 	cmp #DirDown
 	bne CheckLeft
 	rep #$20                  ; A to 16-bit
-	lda MAPPOSY               ; we have to calculate the Y coordinate
-	lsr
-	lsr
-	lsr
-	lsr
+	lda TempY
 	clc
 	adc #$1e                  ; 30 rows down
 	and #$00ff                ; wrap around
@@ -843,11 +909,7 @@ CheckLeft:
 	cmp #DirLeft
 	bne CheckRight
 	rep #$20                  ; A to 16-bit
-	lda MAPPOSX               ; we have to calculate the X coordinate
-	lsr
-	lsr
-	lsr
-	lsr
+	lda TempX
 	sec
 	sbc #$1f                  ; 31 columns left
 	and #$00ff                ; wrap around
@@ -859,11 +921,7 @@ CheckRight:
 	cmp #DirRight             ; theoretically, we don't need this
 	bne CheckEvent            ; or this
 	rep #$20                  ; A to 16-bit
-	lda MAPPOSX               ; we have to calculate the X coordinate
-	lsr
-	lsr
-	lsr
-	lsr
+	lda TempX
 	clc
 	adc #$20                  ; 32 columns right
 	and #$00ff                ; wrap around
@@ -871,14 +929,37 @@ CheckRight:
 	jsr CopyMapColumnToBuffer
 	jmp CheckEvent
 
-	; Then we check to see if we triggered an event, like entering a cave or town.
-CheckEvent:
-	; Finally, check for an enemy encounter.
-CheckEncounter:
+CheckEvent:                   ; Then we check to see if we triggered an event, like entering a cave or town.
+CheckVehicle:                 ; Make sure we're in the right vehicle
+	sep #$20                  ; A to 8-bit
+	lda CURR_VEHICLE
+	cmp Vehicle_Airship       ; if we're in the airship, we don't need to adjust our sprite
+	beq CheckEncounter
+	rep #$20                  ; A back to 16-bit
+	lda CHARACTER_POS         ; we want to know about the tile we landed on
+	jsr GetTileProperties
+	sta TempTileProp
+	and OWTP_NoCanoe          ; did we land on a river?
+	bne @CheckOcean
+	ldy #Vehicle_Canoe
+	sty CURR_VEHICLE
+	bra CheckEncounter
+@CheckOcean:
+	lda TempTileProp          ; are we in the ocean?
+	and OWTP_NoShip
+	bne CheckEncounter
+	ldy #Vehicle_Ship
+	sty CURR_VEHICLE
+
+CheckEncounter:               ; Finally, check for an enemy encounter.
 	rts
 .endproc
 
 .proc SetOverworldCharacterObj
+	; We need to calculate the animation frame to use here.
+	; There's a downward, upward, and leftward facing sprite, and two
+	; frames of animation for each.  12 character classes, ship, airship,
+	; and canoe.
 	sep #$20             ; set A to 8-bit
 	lda #$78             ; player sprite position is $78, $68
 	sta OamMirror
@@ -899,9 +980,9 @@ CheckEncounter:
 	sta OamMirror + 3
 	pla                  ; recall the sprite
 FlipDone:
-	dec                  ; minus 1
+	dec                  ; walk direction minus 1 gets us the index
 	asl                  ; times 2, since there are 2 frames of animation
-	asl                  ; times 2 again?
+	asl                  ; times 2 again?  maybe because these sprites are 16 pixels wide
 	pha                  ; save this, this is the sprite we want
 	rep #$20             ; A to 16-bit
 	lda MAPPOSX          ; we need to see if we should load frame 2
@@ -926,7 +1007,52 @@ FlipDone:
 	sep #$20             ; A back to 8-bit
 	pla                  ; fetch the sprite
 AnimationDone:
-	sta OamMirror + 2
+	pha                  ; save the sprite
+	lda CURR_VEHICLE     ; see what vehicle we're in
+	cmp Vehicle_Ship
+	bne @CheckAirship
+	lda #$0c
+	bra @GetOffset
+@CheckAirship:
+	cmp Vehicle_Airship
+	bne @CheckCanoe
+	lda #$0d
+	bra @GetOffset
+@CheckCanoe:
+	cmp Vehicle_Canoe
+	bne @OnFoot
+	lda #$0e
+	bra @GetOffset
+@OnFoot:
+	lda #$00
+@GetOffset:              ; first we need to multiply by 12.
+	Temp = $00
+	pha
+	asl                  ; we do this by multiplying by 2
+	sta Temp
+	pla                  ; and then adding the original value
+	adc Temp             ; we know carry is clear here because of asl earlier
+	asl
+	asl                  ; now multiply by 4 to complete multiplication by 12
+	sta Temp
+	pla                  ; get back our original sprite value
+	adc Temp             ; and add the offset, we know carry is clear again
+	; Now we do something weird.  Because sprites are also 16 pixels high,
+	; every 16 bytes we need to advance an additional 16 bytes to account for
+	; the lower half of the sprite.
+	pha                  ; save our calculated value
+	and #$0f             ; get the lower 4 bits
+	sta Temp
+	pla                  ; recall our value
+	and #$f0             ; get the upper 4 bits (this is like the row number)
+	asl                  ; double the row number
+	pha
+	lda #$00
+	adc #$00             ; get the overflow
+	tsb OamMirror + 3    ; set the sprite page bit
+	pla
+	ora Temp             ; get the lower 4 bits back
+	sta OamMirror + 2    ; and that's the sprite tile.
 	lda #$01             ; reset the high bit of the x position
 	trb OamMirror + $200
 	rts

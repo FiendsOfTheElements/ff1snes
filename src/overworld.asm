@@ -100,7 +100,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	stz MOVEDIR             ; be still
 	lda #DirDown            ; face down
 	sta FACEDIR
-	lda Vehicle_Foot        ; be on foot
+	lda #Vehicle_Foot       ; be on foot
 	sta CURR_VEHICLE
 	rep #$30                ; A,X,Y to 16-bit
 	ldx #START_POSITION_X   ; set the initial scroll
@@ -741,29 +741,37 @@ Done:
 	bne @CheckDown
 	sec
 	sbc #$0100        ; decrease the Y coordinate
-	bra @Done
+	bra @VerticalDone
 @CheckDown:
 	cpx #DirDown      ; if we're going down
-	bne @Vertical
+	bne @Horizontal
 	clc
 	adc #$0100        ; increase the Y coordinate
-	bra @Done
-@Vertical:
+@VerticalDone:
+	sta MOVE_TO_POS   ; save the coords for reference
+	plp
+	rts
+
+@Horizontal:
 	and #$ff00        ; save the Y coordinate, because we need to reset it in case we wrap
-	sta 0, S          ; put it on the stack
+	pha               ; put it on the stack
+	lda CHARACTER_POS ; get the whole position back
 	cpx #DirLeft      ; if we're going left
 	bne @CheckRight
 	dec               ; decrease the X coordinate
 	and #$00ff        ; isolate X
-	ora 0, S          ; get the Y coordinate back
-	bra @Done
+	ora 1, S          ; get the Y coordinate back
+	bra @HorizontalDone
 @CheckRight:
 	cpx #DirRight     ; if we're going right
-	bne @Done
+	bne @HorizontalDone
 	inc               ; increase the X coordinate
 	and #$00ff        ; isolate X
-	ora 0, S          ; get the Y coordinate back
-@Done:
+	ora 1, S          ; get the Y coordinate back
+@HorizontalDone:
+	sta MOVE_TO_POS   ; save the coords for reference
+	pla               ; pop the stack back
+	lda MOVE_TO_POS   ; retrieve the coords to "return" them
 	plp
 	rts
 .endproc
@@ -775,14 +783,14 @@ Done:
 	php
 	sep #$10                  ; X,Y 8-bit
 	ldy CURR_VEHICLE          ; Get the vehicle we're in
-	cpy Vehicle_Airship       ; Is it the airship?
+	cpy #Vehicle_Airship      ; Is it the airship?
 	bne @NotAirship
 	bra @CanMove              ; If we're in the airship, we can move anywhere.
 @NotAirship:                  ; Otherwise, we need to know what tile we're moving to.
 	jsr GetTileProperties
 	sta TempTileProp          ; save them
 	sep #$10                  ; X,Y 8-bit
-	cpy Vehicle_Ship          ; Y still has the vehicle, is it the ship?
+	cpy #Vehicle_Ship         ; Y still has the vehicle, is it the ship?
 	bne @CanMoveFoot
 @CanMoveShip:
 	and #OWTP_NoShip          ; can we sail?
@@ -791,12 +799,12 @@ Done:
 @CantSail:
 	lda TempTileProp
 	and #OWTP_Dock            ; Are we docking?
-	beq @Dock
+	bne @Dock
 	lda TempTileProp
 	and #OWTP_NoCanoe         ; I can row a boat, canoe?
 	bne @CantDock
 @Dock:
-	ldy Vehicle_Foot          ; set our vehicle to foot
+	ldy #Vehicle_Foot         ; set our vehicle to foot
 	sty CURR_VEHICLE
 	lda CHARACTER_POS         ; set the ship's location to where we are now
 	sta SHIP_POS
@@ -807,7 +815,7 @@ Done:
 	lda TempTileProp
 	and #OWTP_NoWalk          ; can we walk?
 	bne @CantWalk
-	ldy Vehicle_Foot          ; make sure we're walking
+	ldy #Vehicle_Foot         ; make sure we're walking
 	sty CURR_VEHICLE          ; in case we're getting out of the canoe
 	bra @CanMove
 @CantWalk:
@@ -825,7 +833,6 @@ Done:
 @CanMove:
 	lda #$0001                ; can move
 @Done:
-	plb
 	plp
 	plx
 	rts
@@ -931,22 +938,22 @@ CheckRight:
 
 CheckEvent:                   ; Then we check to see if we triggered an event, like entering a cave or town.
 CheckVehicle:                 ; Make sure we're in the right vehicle
-	sep #$20                  ; A to 8-bit
+	sep #$30                  ; A,X,Y to 8-bit
 	lda CURR_VEHICLE
-	cmp Vehicle_Airship       ; if we're in the airship, we don't need to adjust our sprite
+	cmp #Vehicle_Airship      ; if we're in the airship, we don't need to adjust our sprite
 	beq CheckEncounter
 	rep #$20                  ; A back to 16-bit
 	lda CHARACTER_POS         ; we want to know about the tile we landed on
 	jsr GetTileProperties
 	sta TempTileProp
-	and OWTP_NoCanoe          ; did we land on a river?
+	and #OWTP_NoCanoe          ; did we land on a river?
 	bne @CheckOcean
 	ldy #Vehicle_Canoe
 	sty CURR_VEHICLE
 	bra CheckEncounter
 @CheckOcean:
 	lda TempTileProp          ; are we in the ocean?
-	and OWTP_NoShip
+	and #OWTP_NoShip
 	bne CheckEncounter
 	ldy #Vehicle_Ship
 	sty CURR_VEHICLE
@@ -1009,17 +1016,17 @@ FlipDone:
 AnimationDone:
 	pha                  ; save the sprite
 	lda CURR_VEHICLE     ; see what vehicle we're in
-	cmp Vehicle_Ship
+	cmp #Vehicle_Ship
 	bne @CheckAirship
 	lda #$0c
 	bra @GetOffset
 @CheckAirship:
-	cmp Vehicle_Airship
+	cmp #Vehicle_Airship
 	bne @CheckCanoe
 	lda #$0d
 	bra @GetOffset
 @CheckCanoe:
-	cmp Vehicle_Canoe
+	cmp #Vehicle_Canoe
 	bne @OnFoot
 	lda #$0e
 	bra @GetOffset

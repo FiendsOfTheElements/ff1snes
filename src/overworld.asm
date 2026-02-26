@@ -85,6 +85,13 @@ MOVE_TO_POS     = $100E ; 2 bytes, where are we moving to
 SHIP_POS        = $1010 ; 2 bytes
 AIRSHIP_POS     = $1012 ; 2 bytes
 
+CharacterSprite  = OamMirror     ; sprite memory locations
+AirshipSprite    = OamMirror + 4
+ShipSprite       = OamMirror + 8
+CharacterSpriteH = OamMirror + $200
+AirshipSpriteH   = OamMirror + $200 ; these need to be shifted
+ShipSpriteH      = OamMirror + $200
+
 START_POSITION   = $A599    ; start at $99, $A5, and the midpoint of the tile (+8 pixels)
 START_POSITION_X = $0998
 START_POSITION_Y = $0A58
@@ -727,6 +734,7 @@ DoneMoving:
 
 Done:
 	jsr SetOverworldCharacterObj
+	jsr SetOverworldVehicleObj
 	rts
 .endproc
 
@@ -968,23 +976,23 @@ CheckEncounter:               ; Finally, check for an enemy encounter.
 	; frames of animation for each.  12 character classes, ship, airship,
 	; and canoe.
 	sep #$20             ; set A to 8-bit
-	lda #$78             ; player sprite position is $78, $68
-	sta OamMirror
-	lda #$68
-	sta OamMirror + 1
+	lda #$78             ; player sprite position is $78, $67
+	sta CharacterSprite
+	lda #$67
+	sta CharacterSprite + 1
 	lda FACEDIR          ; get the facing direction
 	cmp #DirRight        ; if we're facing right,
 	bne :+
 	dec                  ; then load the facing left sprite,
 	pha                  ; save it
 	lda #$50             ; and flip the sprite horizontally
-	sta OamMirror + 3
+	sta CharacterSprite + 3
 	pla                  ; recall the sprite
 	jmp FlipDone
 :
 	pha
 	lda #$10             ; otherwise no flip, 1 priority, 0th palette
-	sta OamMirror + 3
+	sta CharacterSprite + 3
 	pla                  ; recall the sprite
 FlipDone:
 	dec                  ; walk direction minus 1 gets us the index
@@ -1056,12 +1064,113 @@ AnimationDone:
 	pha
 	lda #$00
 	adc #$00             ; get the overflow
-	tsb OamMirror + 3    ; set the sprite page bit
+	tsb CharacterSprite + 3 ; set the sprite page bit
 	pla
 	ora Temp             ; get the lower 4 bits back
-	sta OamMirror + 2    ; and that's the sprite tile.
+	sta CharacterSprite + 2 ; and that's the sprite tile.
 	lda #$01             ; reset the high bit of the x position
-	trb OamMirror + $200
+	trb CharacterSpriteH
+	rts
+.endproc
+
+.proc SetOverworldVehicleObj
+	; We're going to display the ship and airship sprites.
+	TempX = $00
+	TempY = $02
+	php
+	rep #$20          ; make A 16-bit
+	lda AIRSHIP_POS
+	jsr CalculateVehicleScreenPosition
+	sep #$20          ; make A 8-bit
+	lda TempX
+	sta AirshipSprite
+	lda TempY
+	sta AirshipSprite + 1
+	lda #$44
+	sta AirshipSprite + 2
+	lda #$11
+	sta AirshipSprite + 3
+	lda TempX + 1     ; do the high bit of the X position
+	beq @ResetAirshipSpriteH
+	lda #$04
+	tsb AirshipSpriteH
+	bra @Ship
+@ResetAirshipSpriteH:
+	lda #$04
+	trb AirshipSpriteH
+@Ship:
+	rep #$20          ; make A 16-bit
+	lda SHIP_POS
+	jsr CalculateVehicleScreenPosition
+	sep #$20          ; make A 8-bit
+	lda TempX
+	sta ShipSprite
+	lda TempY
+	sta ShipSprite + 1
+	lda #$28
+	sta ShipSprite + 2
+	lda #$11
+	sta ShipSprite + 3
+	lda TempX + 1     ; do the high bit of the X position
+	beq @ResetShipSpriteH
+	lda #$10
+	tsb ShipSpriteH
+	bra @Done
+@ResetShipSpriteH:
+	lda #$10
+	trb ShipSpriteH
+@Done:
+	plp
+	rts
+.endproc
+
+.proc CalculateVehicleScreenPosition
+	; If the ship is at coordinates $0yy0, $0xx0 in pixel space, and the player
+	; is at $0YYV, $0XXH, then the ship sprite goes at:
+	; $0yy0 - $0YYV + $70, $0xx0 - $0XXH + $80
+	TempX      = $00
+	TempY      = $02
+	TempCoords = $04
+.a16
+	sta TempCoords    ; save the coords
+	and #$ff00        ; do the Y coordinate first
+	lsr
+	lsr
+	lsr
+	lsr               ; shift it over to pixel space
+	sec
+	sbc MAPPOSY       ; subtract the player's Y coordinate
+	clc
+	adc #$006f        ; add the screen offset
+	cmp #$fff0        ; see if it's on the top edge of the screen
+	bcs @DontHideY
+	cmp #$00df        ; see if it's above the bottom of the screen
+	bcc @DontHideY
+	bra @Hide
+@DontHideY:
+	sta TempY
+	lda TempCoords    ; load the coords again for the X coordinate
+	and #$00ff        ; low byte this time
+	asl
+	asl
+	asl
+	asl               ; and we shift left to get it in pixel space
+	sec
+	sbc MAPPOSX       ; subtract player X
+	clc
+	adc #$0080        ; add the screen offset
+	cmp #$fff1        ; see if it's on the left edge of the screen
+	bcs @DontHideX
+	cmp #$0100        ; see if it's before the right of the screen
+	bcc @DontHideX
+	bra @Hide
+@DontHideX:
+	sta TempX
+	rts
+@Hide:
+	lda #$0100        ; sprite coords $00, $100 are off screen
+	sta TempX
+	stz TempY
 	rts
 .endproc
 

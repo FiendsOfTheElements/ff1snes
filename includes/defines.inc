@@ -30,6 +30,7 @@ StackBase        = $1E00     ; expected to be no more than 512 bytes, grows from
 ; High WRAM locations
 OverworldMapBank = $7E
 OverworldMap     = $4000     ; store the decompressed overworld map from $7E:4000-7E:7FFF (64 rows x 256 columns, 4096 bytes)
+OverworldMapL    = $7E4000
 
 ; Overworld tile properties
 OWTP_NoWalk       = $0001

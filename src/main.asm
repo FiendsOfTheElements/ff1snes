@@ -63,8 +63,15 @@
 .endproc
 
 .proc InitializeOam
+	lda #$e0                ; this will put sprites off the bottom of the screen
 	ldx #$1ff               ; size of main OAM
 @BaseLoop:
+	stz OamMirror, X        ; zero out main OAM
+	dex
+	stz OamMirror, X        ; zero out main OAM
+	dex
+	sta OamMirror, X        ; the Y coordinate
+	dex
 	stz OamMirror, X        ; zero out main OAM
 	dex
 	bpl @BaseLoop

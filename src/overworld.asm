@@ -811,9 +811,14 @@ Done:
 	lda TempTileProp
 	and #OWTP_NoCanoe         ; I can row a boat, canoe?
 	bne @CantDock
+@DockCanoe:
+	ldy #Vehicle_Canoe
+	sty CURR_VEHICLE
+	bra @StopShip
 @Dock:
 	ldy #Vehicle_Foot         ; set our vehicle to foot
 	sty CURR_VEHICLE
+@StopShip:
 	lda CHARACTER_POS         ; set the ship's location to where we are now
 	sta SHIP_POS
 	bra @CanMove              ; and we're walking
@@ -1075,10 +1080,13 @@ AnimationDone:
 
 .proc SetOverworldVehicleObj
 	; We're going to display the ship and airship sprites.
-	TempX = $00
-	TempY = $02
+	TempX       = $00
+	TempY       = $02
+	TempVehicle = $04
 	php
 	rep #$20          ; make A 16-bit
+	lda #Vehicle_Airship
+	sta TempVehicle   ; Tell the next function we are asking about the airship
 	lda AIRSHIP_POS
 	jsr CalculateVehicleScreenPosition
 	sep #$20          ; make A 8-bit
@@ -1100,6 +1108,8 @@ AnimationDone:
 	trb AirshipSpriteH
 @Ship:
 	rep #$20          ; make A 16-bit
+	lda #Vehicle_Ship
+	sta TempVehicle   ; Tell the next function we are asking about the ship
 	lda SHIP_POS
 	jsr CalculateVehicleScreenPosition
 	sep #$20          ; make A 8-bit
@@ -1128,11 +1138,17 @@ AnimationDone:
 	; If the ship is at coordinates $0yy0, $0xx0 in pixel space, and the player
 	; is at $0YYV, $0XXH, then the ship sprite goes at:
 	; $0yy0 - $0YYV + $70, $0xx0 - $0XXH + $80
-	TempX      = $00
-	TempY      = $02
-	TempCoords = $04
+	TempX       = $00
+	TempY       = $02
+	TempVehicle = $04
+	TempCoords  = $06
 .a16
 	sta TempCoords    ; save the coords
+	lda CURR_VEHICLE
+	and #$00ff        ; current vehicle is just one byte
+	cmp TempVehicle   ; see if the vehicle we're calculating for is the one we're currently in
+	beq @Hide         ; if so, hide it because the active player sprite is this vehicle
+	lda TempCoords
 	and #$ff00        ; do the Y coordinate first
 	lsr
 	lsr

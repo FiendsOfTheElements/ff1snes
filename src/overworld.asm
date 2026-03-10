@@ -811,9 +811,14 @@ Done:
 	lda TempTileProp
 	and #OWTP_NoCanoe         ; I can row a boat, canoe?
 	bne @CantDock
+@DockCanoe:
+	ldy #Vehicle_Canoe
+	sty CURR_VEHICLE
+	bra @StopShip
 @Dock:
 	ldy #Vehicle_Foot         ; set our vehicle to foot
 	sty CURR_VEHICLE
+@StopShip:
 	lda CHARACTER_POS         ; set the ship's location to where we are now
 	sta SHIP_POS
 	bra @CanMove              ; and we're walking

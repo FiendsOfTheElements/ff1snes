@@ -215,10 +215,11 @@ void Nes2bppToSnes4bpp(Span<byte> nes, Span<byte> snes, byte paletteIndex)
 	byte highPalette = (byte)((paletteIndex & 0x02) == 0 ? 0x00 : 0xFF);
 	for (int y = 0; y < 8; y++) // 8 rows of pixels
 	{
+		byte mask = (byte)(nes[y] | nes[y + 8]);
 		snes[2 * y] = nes[y];
 		snes[2 * y + 1] = nes[y + 8];
-		snes[2 * y + 16] = lowPalette;
-		snes[2 * y + 17] = highPalette;
+		snes[2 * y + 16] = (byte)(lowPalette & mask);
+		snes[2 * y + 17] = (byte)(highPalette & mask);
 	}
 }
 

@@ -238,20 +238,17 @@ Loop:
 	tya
 	and #$003f                 ; row mod 64
 	xba                        ; times the row length (256)
-	tay                        ; Y now points to the destination row buffer
+	tax                        ; X now points to the destination row buffer
 	pla                        ; restore the actual row
 	asl                        ; row# times 2 to get the pointer
-	tax
-	lda CompressedOverworld, X ; get the pointer
-	tax                        ; X now points to the compressed row data
+	tay
+	lda CompressedOverworld, Y ; get the pointer
+	tay                        ; Y now points to the compressed row data
 
 @Loop:
 	sep #$20                   ; set A to 8-bit
-	lda #BANK_OVERWORLD        ; Set data bank to overworld source
-	pha
-	plb
-	lda CompressedOverworld, X
-	inx
+	lda CompressedOverworld, Y
+	iny
 	cmp #$ff                   ; are we done?
 	bne :+
 	plp                        ; Restore the bitness before
@@ -262,36 +259,29 @@ Loop:
 	cmp #$80                   ; test the MSB
 	bcs :+
                                ; if we're here, just one tile
-	lda #OverworldMapBank      ; set data bank to overworld destination
-	pha
-	plb
 	pla                        ; retrieve the tile
-	sta OverworldMap, Y        ; store it
-	iny                        ; bump it
+	sta OverworldMapL, X       ; store it
+	inx                        ; bump it
 	jmp @Loop                  ; loop it
 :                              ; if we're here, we repeat the tile
-	rep #$20                   ; set A to 16-bit (because X is 16-bit)
-	lda CompressedOverworld, X ; get the number of repeats
-	inx
-	stx TempSrc                ; remember where we were reading from
-	and #$00ff                 ; we only want one byte
-	bne :+
+	lda #$00                   ; we need to clear
+	xba                        ; the high byte of A, so that...
+	lda CompressedOverworld, Y ; get the number of repeats
+	iny
+	sty TempSrc                ; remember where we were reading from
+	tay                        ; ...the high byte of Y will be clear
+	bne :+                     ; Y will count down
 	                           ; if the count is 0, the count is actually 256
-	lda #$0100                 ; so fix it (this would "just work" if X were 8-bit, but it isn't, and we need Y to be 16-bit)
+	ldy #$0100                 ; so fix it (this would "just work" if Y were 8-bit, but it isn't, and we need Y to be 16-bit)
 :
-	tax                        ; X will count down
-	sep #$20                   ; A back to 8-bit
-	lda #OverworldMapBank      ; set data bank to overworld destination
-	pha
-	plb
 	pla                        ; get the tile back
 	and #$7f                   ; clear the repeat flag
 @LoopRepeat:
-	sta OverworldMap, Y        ; store it
-	iny                        ; bump it
-	dex                        ; loop it
+	sta OverworldMapL, X       ; store it
+	inx                        ; bump it
+	dey                        ; loop it
 	bne @LoopRepeat
-	ldx TempSrc                ; restore where we were reading from
+	ldy TempSrc                ; restore where we were reading from
 	jmp @Loop
 .endproc
 

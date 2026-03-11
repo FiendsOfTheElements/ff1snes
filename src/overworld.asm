@@ -296,6 +296,10 @@ Loop:
 	TempRowPos        = $08
 	phy
 	php
+	sep #$20                   ; A 8-bit
+	lda #BANK_MAIN             ; set data bank for the tilemaps
+	pha
+	plb
 	rep #$20                   ; A 16-bit
 	tya
 	and #$3f                   ; row mod 64
@@ -321,11 +325,7 @@ Loop:
 	sta TempBufferPointer      ; save the buffer pointer
 	stz TempCounter            ; loop variable
 	rep #$10                   ; X,Y to 16-bit
-	sep #$20                   ; A to 8-bit
 @Loop:
-	lda #OverworldMapBank      ; set data bank for the decompressed map
-	pha
-	plb
 	rep #$20                         ; A to 16-bit
 	lda TempBufferPointer            ; We need to calculate the tile index in the decompressed map.
 	and #$00ff                       ; just the x-coordinate
@@ -337,13 +337,10 @@ Loop:
 	clc
 	adc TempRowPos                   ; add the row position
 	tax                              ; put it in X
-	lda OverworldMap, X              ; get the tile
+	lda OverworldMapL, X             ; get the tile
 	and #$00ff                       ; just one byte
 	tay                              ; put it in Y
 	sep #$20                         ; A to 8-bit
-	lda #BANK_MAIN                   ; set data bank for the tilemaps
-	pha
-	plb
 	lda OverworldTilemaps, Y         ; get the upper-left character
 	pha                              ; save it
 	lda OverworldTilemaps + $80, Y   ; get the upper-right character
@@ -371,9 +368,6 @@ Loop:
 	cmp #$40                         ; do this 64 times
 	bne @Loop
 
-	lda #BANK_MAIN                   ; back to main bank
-	pha
-	plb
 	plp
 	ply
 	rts
@@ -421,6 +415,10 @@ Loop:
 	TempBufferPointerRight = $06
 	TempColPos             = $08
 	php
+	sep #$20                   ; A 8-bit
+	lda #BANK_MAIN             ; set data bank for the tilemaps
+	pha
+	plb
 	rep #$20                   ; A 16-bit
 	lda #TileMapBuffer
 	sta TempBufferPointerLeft  ; initialize the buffer pointer
@@ -444,19 +442,11 @@ Loop:
 	adc TempColPos             ; plus the column index
 	tax                        ; is the tile index
 
-	sep #$20                   ; A 8-bit
-	lda #OverworldMapBank      ; set data bank for the decompressed map
-	pha
-	plb
-	rep #$20                   ; A 16-bit
-	lda OverworldMap, X        ; get the tile
+	lda OverworldMapL, X       ; get the tile
 	and #$00ff                 ; just one byte
 	tax                        ; put it in X
 
 	sep #$20                         ; A 8-bit
-	lda #BANK_MAIN                   ; set data bank for the tilemaps
-	pha
-	plb
 	lda OverworldTilemaps, X         ; get the upper-left character
 	sta (TempBufferPointerLeft)      ; save it
 	inc TempBufferPointerLeft
@@ -474,9 +464,6 @@ Loop:
 	cpy #$40                         ; do this 64 times
 	bne @Loop
 
-	lda #BANK_MAIN                   ; back to main bank
-	pha
-	plb
 	plp
 	rts
 .endproc

@@ -79,11 +79,11 @@ Vehicle_Canoe   = 2     ; but I made them equal to the walkability flags, which 
 Vehicle_Ship    = 4     ; we don't even need a specific value for "foot", just any value that
 Vehicle_Airship = 8     ; isn't the other values
 CURR_VEHICLE    = $100A ; are we in a vehicle?
-MOVE_SPEED      = $100B ; how many pixels per frame, 1 for walking, 2 for ship, 4 for airship
-CHARACTER_POS   = $100C ; 2 bytes, $YYXX map coordinates
-MOVE_TO_POS     = $100E ; 2 bytes, where are we moving to
-SHIP_POS        = $1010 ; 2 bytes
-AIRSHIP_POS     = $1012 ; 2 bytes
+MOVE_SPEED      = $100B ; how many pixels per frame, 1 for walking, 2 for ship, 4 for airship, should be 2 bytes for convenience
+CHARACTER_POS   = $100D ; 2 bytes, $YYXX map coordinates
+MOVE_TO_POS     = $100F ; 2 bytes, where are we moving to
+SHIP_POS        = $1011 ; 2 bytes
+AIRSHIP_POS     = $1013 ; 2 bytes
 
 CharacterSprite  = OamMirror     ; sprite memory locations
 AirshipSprite    = OamMirror + 4
@@ -661,6 +661,7 @@ Move:
 	jsr CanMove
 	cmp #$0001
 	bne Done
+	jsr CalculateMovementSpeed
 MoveOK:
 	ldx FACEDIR
 	stx MOVEDIR
@@ -669,7 +670,8 @@ MoveUp:
 	cpx #DirUp
 	bne MoveDown
 	lda MAPPOSY
-	dec
+	sec
+	sbc MOVE_SPEED
 	and #$0fff       ; wrap around
 	sta MAPPOSY
 	bra DoneMoving
@@ -678,7 +680,8 @@ MoveDown:
 	cpx #DirDown
 	bne MoveLeft
 	lda MAPPOSY
-	inc
+	clc
+	adc MOVE_SPEED
 	and #$0fff       ; wrap around
 	sta MAPPOSY
 	bra DoneMoving
@@ -687,7 +690,8 @@ MoveLeft:
 	cpx #DirLeft
 	bne MoveRight
 	lda MAPPOSX
-	dec
+	sec
+	sbc MOVE_SPEED
 	and #$0fff       ; wrap around
 	sta MAPPOSX
 	bra DoneMoving
@@ -696,7 +700,8 @@ MoveRight:
 	cpx #DirRight
 	bne Done
 	lda MAPPOSX
-	inc
+	clc
+	adc MOVE_SPEED
 	and #$0fff       ; wrap around
 	sta MAPPOSX
 ;	bra DoneMoving
@@ -844,6 +849,48 @@ Done:
 	lda OverworldTileProperties, X ; get the tile properties
 	plp
 	rts
+.endproc
+
+.proc CalculateMovementSpeed
+.a16
+.i8
+	phx
+	ldx CURR_VEHICLE          ; which vehicle is the main factor here
+	lda JoyPad1
+	and #BUTTON_B             ; and if we're pressing B
+	bne @PressingB
+
+	cpx #Vehicle_Airship
+	bne @NotAirship
+	lda #$0004
+	bra @Done
+@NotAirship:
+	cpx #Vehicle_Ship
+	bne @NotShip
+	lda #$0004
+	bra @Done
+@NotShip:
+	lda #$0002
+	bra @Done
+
+@PressingB:
+	cpx #Vehicle_Airship
+	bne @NotAirshipB
+	lda #$0002
+	bra @Done
+@NotAirshipB:
+	cpx #Vehicle_Ship
+	bne @NotShipB
+	lda #$0002
+	bra @Done
+@NotShipB:
+	lda #$0001
+
+@Done:
+	sta MOVE_SPEED
+	plx
+	rts
+
 .endproc
 
 .proc LandedOnSquare

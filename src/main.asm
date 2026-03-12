@@ -40,6 +40,7 @@
 .import DoOverworldMovement
 .import CopyTileMapBufferToVRAM
 .import SetMode7Matrix
+.import SetupAirshipMode7HDMA
 
 .include "registers.inc"
 .include "defines.inc"
@@ -105,6 +106,7 @@
 	jsr CopyOamMirrorToOAM
 	jsr CopyTileMapBufferToVRAM
 	jsr SetMode7Matrix
+	jsr SetupAirshipMode7HDMA
 
 	plp
 	rti

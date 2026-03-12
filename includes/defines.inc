@@ -7,6 +7,7 @@
 .endmacro
 
 BANK_MAIN      = $00
+BANK_AIRSHIPM7 = $01
 BANK_OVERWORLD = $02
 BANK_OWSPRITE  = $03
 

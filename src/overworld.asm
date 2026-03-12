@@ -628,6 +628,23 @@ Loop:
 	ldx MOVEDIR             ; see if we're already moving
 	bne MoveOK
 
+	; if we're not moving, we're going to see if we're pressing the A button
+	; and we're on the airship
+CheckAButton:
+	lda JoyPad1
+	and #BUTTON_A
+	beq CheckUpButton
+	ldx CURR_VEHICLE
+	cpx #Vehicle_Airship    ; are we currently flying?
+	bne CheckTakeoff
+	jsr LandAirship         ; not anymore we're not
+	bra CheckUpButton       ; might as well try to walk as soon as we land
+CheckTakeoff:
+	lda CHARACTER_POS
+	cmp AIRSHIP_POS         ; are we standing on the airship?
+	bne CheckUpButton
+	jsr TakeoffAirship
+
 	; check the dpad, if any of the directional buttons are pressed,
 	; move the screen accordingly
 CheckUpButton:
@@ -1217,6 +1234,37 @@ AnimationDone:
 	lda #$0100        ; sprite coords $00, $100 are off screen
 	sta TempX
 	stz TempY
+	rts
+.endproc
+
+.proc TakeoffAirship
+@Loop:
+	wai
+	lda AIRSHIP_TRANSITION
+	inc
+	inc
+	sta AIRSHIP_TRANSITION
+	cmp #$80
+	bne @Loop
+
+	ldx #Vehicle_Airship
+	stx CURR_VEHICLE
+	rts
+.endproc
+
+.proc LandAirship
+@Loop:
+	wai
+	lda AIRSHIP_TRANSITION
+	dec
+	dec
+	sta AIRSHIP_TRANSITION
+	bne @Loop
+
+	ldx #Vehicle_Foot
+	stx CURR_VEHICLE
+	lda CHARACTER_POS
+	sta AIRSHIP_POS
 	rts
 .endproc
 

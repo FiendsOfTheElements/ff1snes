@@ -10,9 +10,12 @@
 .export DoOverworldMovement
 .export CopyTileMapBufferToVRAM
 .export SetMode7Matrix
+.export SetupAirshipMode7HDMA
 
 .import Sine
 .import Cosine
+
+.import AirshipMode7Tables : far
 
 .segment "OVERWORLD"
 OverworldChr:        .incbin "graphics/overworld-chr.m7"         ; 16 KB
@@ -84,6 +87,7 @@ CHARACTER_POS   = $100D ; 2 bytes, $YYXX map coordinates
 MOVE_TO_POS     = $100F ; 2 bytes, where are we moving to
 SHIP_POS        = $1011 ; 2 bytes
 AIRSHIP_POS     = $1013 ; 2 bytes
+AIRSHIP_TRANSITION = $1015 ; 2 bytes
 
 CharacterSprite  = OamMirror     ; sprite memory locations
 AirshipSprite    = OamMirror + 4
@@ -120,6 +124,8 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	sta SHIP_POS
 	lda #AIRSHIP_INIT       ; and airship coords
 	sta AIRSHIP_POS
+	lda #$00                ; zero the airship transition
+	sta AIRSHIP_TRANSITION
 	stz MAPANGLE            ; initial rotation (none)
 	lda #$0040              ; initial zoom (1x)
 	sta MAPZOOM
@@ -621,6 +627,23 @@ Loop:
 
 	ldx MOVEDIR             ; see if we're already moving
 	bne MoveOK
+
+	; if we're not moving, we're going to see if we're pressing the A button
+	; and we're on the airship
+CheckAButton:
+	lda JoyPad1
+	and #BUTTON_A
+	beq CheckUpButton
+	ldx CURR_VEHICLE
+	cpx #Vehicle_Airship    ; are we currently flying?
+	bne CheckTakeoff
+	jsr LandAirship         ; not anymore we're not
+	bra CheckUpButton       ; might as well try to walk as soon as we land
+CheckTakeoff:
+	lda CHARACTER_POS
+	cmp AIRSHIP_POS         ; are we standing on the airship?
+	bne CheckUpButton
+	jsr TakeoffAirship
 
 	; check the dpad, if any of the directional buttons are pressed,
 	; move the screen accordingly
@@ -1211,6 +1234,68 @@ AnimationDone:
 	lda #$0100        ; sprite coords $00, $100 are off screen
 	sta TempX
 	stz TempY
+	rts
+.endproc
+
+.proc TakeoffAirship
+@Loop:
+	ldx #Vehicle_Airship
+	stx CURR_VEHICLE
+	wai
+	lda AIRSHIP_TRANSITION
+	inc
+	inc
+	sta AIRSHIP_TRANSITION
+	cmp #$80
+	bne @Loop
+
+	rts
+.endproc
+
+.proc LandAirship
+@Loop:
+	wai
+	lda AIRSHIP_TRANSITION
+	dec
+	dec
+	sta AIRSHIP_TRANSITION
+	bne @Loop
+
+	ldx #Vehicle_Foot
+	stx CURR_VEHICLE
+	lda CHARACTER_POS
+	sta AIRSHIP_POS
+	rts
+.endproc
+
+.proc SetupAirshipMode7HDMA
+	rep #$20                      ; A to 16-bit
+	ldx AIRSHIP_TRANSITION
+	beq @Quit
+	dex
+	dex
+	lda AirshipMode7Tables, X     ; this is a long read
+	sta DMA6ADDAL                 ; we'll read from the airship mode 7 HDMA table
+	sta DMA7ADDAL                 ; for both channels
+	sep #$20                      ; A to 8-bit
+	rep #$10                      ; X,Y to 16-bit
+	stz HDMAEN                    ; reset HDMA
+	lda #<M7A                     ; write to M7A
+	sta DMA6ADDB                  ; on channel 6
+	lda #<M7D                     ; and M7D
+	sta DMA7ADDB                  ; on channel 7
+	lda #BANK_AIRSHIPM7           ; which is in this bank
+	sta DMA6ADDAH
+	sta DMA7ADDAH
+	lda #$02                      ; configure HDMA for A->B, 2 bytes to 1 register (M7A/M7D)
+	sta DMA6PARAM
+	sta DMA7PARAM
+	lda #$C0                      ; channels 6 and 7
+	sta HDMAEN                    ; enable
+	rts
+@Quit:
+	sep #$20                      ; A 8-bit
+	stz HDMAEN                    ; just zero this out
 	rts
 .endproc
 

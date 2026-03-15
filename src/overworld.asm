@@ -1239,6 +1239,8 @@ AnimationDone:
 
 .proc TakeoffAirship
 @Loop:
+	ldx #Vehicle_Airship
+	stx CURR_VEHICLE
 	wai
 	lda AIRSHIP_TRANSITION
 	inc
@@ -1247,8 +1249,6 @@ AnimationDone:
 	cmp #$80
 	bne @Loop
 
-	ldx #Vehicle_Airship
-	stx CURR_VEHICLE
 	rts
 .endproc
 

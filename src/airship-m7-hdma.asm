@@ -1,3 +1,28 @@
+; These tables were generated.  There are 64 frames worth of tables,
+; so the transition takes just over 1 second.
+; https://novasquirrel.github.io/Mode7Preview/
+
+; // We use (scanline - 112)/112 to calculate a value between -1 at the top of
+; // the screen, and +1 at the bottom.  We then multiply this by a scaling
+; // parameter for zoom and add an offset parameter for camera angle, and take
+; // 1/result to do the perspective transform.
+; frame = (framecount%64)/64.0; // how much of the effect are we doing, 0 to 1
+; s = (1 - 1/(1 + frame))/3;    // scaling parameter
+; t = 1/(1 + frame);            // offset parameter
+; x = y = 1/(t + s*(scanline - 112)/112);
+; m7a = toFixed(x);
+; m7b = 0x0000;
+; m7c = 0x0000;
+; m7d = toFixed(y);
+; m7x = 120; // scale from the middle of the screen
+; m7y = 112;
+; m7hofs = 0;
+; m7vofs = 0;
+; return [m7a, m7b, m7c, m7d, m7x, m7y, m7hofs, m7vofs];
+
+; To generate these tables, replace framecount with var1, and
+; step var1 from 1 to 64 in the Generate tab.
+
 .segment "AIRSHIPM7"
 
 .export AirshipMode7Tables : far

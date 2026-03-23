@@ -4,7 +4,7 @@
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
-using var input = Image.Load<Bgra5551>("packs/ff4like/CharacterSprites.png");
+using var input = Image.Load<Bgra5551>("packs/ff4like/PackedCharacterSprites.png");
 using var output = new Image<Bgra5551>(input.Width, input.Height);
 input.ProcessPixelRows(output, (inputProcess, outputProcess) =>
 {
@@ -33,7 +33,7 @@ input.ProcessPixelRows(output, (inputProcess, outputProcess) =>
 	CopyPixels(input, output, new Rectangle(0, 240, 104, 48), new Point(0, 320));
 });
 
-output.SaveAsPng("test-out.png");
+output.SaveAsPng("packs/ff4like/CharacterSprites.png");
 
 void CopyPixels<T>(Image<T> input, Image<T> output, Rectangle inputArea, Point outputOrigin) where T : unmanaged, IPixel<T>
 {

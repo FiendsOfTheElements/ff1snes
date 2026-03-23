@@ -10,6 +10,7 @@ rip:
 	mv *.m7 assets/graphics
 	mv *.4bpp assets/graphics
 	mv *.bin assets/data
+	utils/sprite-unpacker/unpack-sprites.cs
 
 obj/%.o: src/%.asm $(INC) rip
 	@mkdir -p obj

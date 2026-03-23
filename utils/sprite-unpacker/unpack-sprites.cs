@@ -5,7 +5,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
 using var image = Image.Load<Bgra5551>("packs/ff4like/CharacterSprites.png");
-byte[] sprites = new byte[0x8000]; // a bank full of sprites
+byte[] sprites = new byte[0x4000]; // half a bank full of sprites
 byte[] palettes = new byte[0x200]; // 16 palettes of 16 colors each, 2 bytes per color
 for (int c = 0; c < 6; c++) // character classes
 {
@@ -100,78 +100,78 @@ for (int c = 0; c < 6; c++) // promoted classes
 	// Top row
 	// Facing down
 	character = ConvertBgra5551To4bpp(image, new Point(104, 192 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0);
 	character = ConvertBgra5551To4bpp(image, new Point(112, 192 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x20);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x20);
 	character = ConvertBgra5551To4bpp(image, new Point(112, 192 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x40);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x40);
 	character = ConvertBgra5551To4bpp(image, new Point(104, 192 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x60);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x60);
 	// Facing up
 	character = ConvertBgra5551To4bpp(image, new Point(120, 192 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x80);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x80);
 	character = ConvertBgra5551To4bpp(image, new Point(128, 192 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0xA0);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0xA0);
 	character = ConvertBgra5551To4bpp(image, new Point(128, 192 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0xC0);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0xC0);
 	character = ConvertBgra5551To4bpp(image, new Point(120, 192 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0xE0);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0xE0);
 	// Facing left
 	character = ConvertBgra5551To4bpp(image, new Point(136, 192 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x100);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x100);
 	character = ConvertBgra5551To4bpp(image, new Point(144, 192 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x120);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x120);
 	character = ConvertBgra5551To4bpp(image, new Point(152, 192 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x140);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x140);
 	character = ConvertBgra5551To4bpp(image, new Point(160, 192 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x160);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x160);
 	// Facing right
 	character = ConvertBgra5551To4bpp(image, new Point(136, 192 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x180);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x180);
 	character = ConvertBgra5551To4bpp(image, new Point(144, 192 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x1A0);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x1A0);
 	character = ConvertBgra5551To4bpp(image, new Point(152, 192 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x1C0);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x1C0);
 	character = ConvertBgra5551To4bpp(image, new Point(160, 192 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x1E0);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x1E0);
 
 	// Bottom row
 	// Facing down
 	character = ConvertBgra5551To4bpp(image, new Point(104, 200 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x200);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x200);
 	character = ConvertBgra5551To4bpp(image, new Point(112, 200 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x220);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x220);
 	character = ConvertBgra5551To4bpp(image, new Point(112, 200 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x240);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x240);
 	character = ConvertBgra5551To4bpp(image, new Point(104, 200 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x260);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x260);
 	// Facing up
 	character = ConvertBgra5551To4bpp(image, new Point(120, 200 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x280);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x280);
 	character = ConvertBgra5551To4bpp(image, new Point(128, 200 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x2A0);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x2A0);
 	character = ConvertBgra5551To4bpp(image, new Point(128, 200 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x2C0);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x2C0);
 	character = ConvertBgra5551To4bpp(image, new Point(120, 200 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x2E0);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x2E0);
 	// Facing left
 	character = ConvertBgra5551To4bpp(image, new Point(136, 200 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x300);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x300);
 	character = ConvertBgra5551To4bpp(image, new Point(144, 200 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x320);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x320);
 	character = ConvertBgra5551To4bpp(image, new Point(152, 200 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x340);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x340);
 	character = ConvertBgra5551To4bpp(image, new Point(160, 200 + 16*c), inversePalette);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x360);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x360);
 	// Facing right
 	character = ConvertBgra5551To4bpp(image, new Point(136, 200 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x380);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x380);
 	character = ConvertBgra5551To4bpp(image, new Point(144, 200 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x3A0);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x3A0);
 	character = ConvertBgra5551To4bpp(image, new Point(152, 200 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x3C0);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x3C0);
 	character = ConvertBgra5551To4bpp(image, new Point(160, 200 + 16*c), inversePalette, flipped: true);
-	character.CopyTo(sprites, 0x3000 + 0x400*c + 0x3E0);
+	character.CopyTo(sprites, 0x1800 + 0x400*c + 0x3E0);
 }
 for (int v = 0; v < 3; v++) // vehicles
 {
@@ -184,57 +184,57 @@ for (int v = 0; v < 3; v++) // vehicles
 	{
 		// Top row
 		character = ConvertBgra5551To4bpp(image, new Point(i*8, 320 + 16*v), inversePalette);
-		character.CopyTo(sprites, 0x6000 + 0x400*v + 0x20*i);
+		character.CopyTo(sprites, 0x3000 + 0x400*v + 0x20*i);
 		// Bottom row
 		character = ConvertBgra5551To4bpp(image, new Point(i*8, 328 + 16*v), inversePalette);
-		character.CopyTo(sprites, 0x6000 + 0x400*v + 0x200 + 0x20*i);
+		character.CopyTo(sprites, 0x3000 + 0x400*v + 0x200 + 0x20*i);
 	}
 	// Facing right
 	// Top row
 	character = ConvertBgra5551To4bpp(image, new Point(72, 320 + 16*v), inversePalette);
-	character.CopyTo(sprites, 0x6000 + 0x400*v + 0x180);
+	character.CopyTo(sprites, 0x3000 + 0x400*v + 0x180);
 	character = ConvertBgra5551To4bpp(image, new Point(64, 320 + 16*v), inversePalette);
-	character.CopyTo(sprites, 0x6000 + 0x400*v + 0x1A0);
+	character.CopyTo(sprites, 0x3000 + 0x400*v + 0x1A0);
 	character = ConvertBgra5551To4bpp(image, new Point(88, 320 + 16*v), inversePalette);
-	character.CopyTo(sprites, 0x6000 + 0x400*v + 0x1C0);
+	character.CopyTo(sprites, 0x3000 + 0x400*v + 0x1C0);
 	character = ConvertBgra5551To4bpp(image, new Point(80, 320 + 16*v), inversePalette);
-	character.CopyTo(sprites, 0x6000 + 0x400*v + 0x1E0);
+	character.CopyTo(sprites, 0x3000 + 0x400*v + 0x1E0);
 	// Bottom row
 	character = ConvertBgra5551To4bpp(image, new Point(72, 328 + 16*v), inversePalette);
-	character.CopyTo(sprites, 0x6000 + 0x400*v + 0x380);
+	character.CopyTo(sprites, 0x3000 + 0x400*v + 0x380);
 	character = ConvertBgra5551To4bpp(image, new Point(64, 328 + 16*v), inversePalette);
-	character.CopyTo(sprites, 0x6000 + 0x400*v + 0x3A0);
+	character.CopyTo(sprites, 0x3000 + 0x400*v + 0x3A0);
 	character = ConvertBgra5551To4bpp(image, new Point(88, 328 + 16*v), inversePalette);
-	character.CopyTo(sprites, 0x6000 + 0x400*v + 0x3C0);
+	character.CopyTo(sprites, 0x3000 + 0x400*v + 0x3C0);
 	character = ConvertBgra5551To4bpp(image, new Point(80, 328 + 16*v), inversePalette);
-	character.CopyTo(sprites, 0x6000 + 0x400*v + 0x3E0);
+	character.CopyTo(sprites, 0x3000 + 0x400*v + 0x3E0);
 }
 // Airship shadow and mini ship
 byte[] etcCharacter = new byte[32];
 var etcInversePalette = GetInversePalette(image, new Rectangle(0, 320, 96, 16)); // same as vehicle palette
 
 etcCharacter = ConvertBgra5551To4bpp(image, new Point(64, 272), etcInversePalette);
-etcCharacter.CopyTo(sprites, 0x7800);
+etcCharacter.CopyTo(sprites, 0x3c00);
 etcCharacter = ConvertBgra5551To4bpp(image, new Point(72, 272), etcInversePalette);
-etcCharacter.CopyTo(sprites, 0x7820);
+etcCharacter.CopyTo(sprites, 0x3c20);
 etcCharacter = ConvertBgra5551To4bpp(image, new Point(80, 272), etcInversePalette);
-etcCharacter.CopyTo(sprites, 0x7840);
+etcCharacter.CopyTo(sprites, 0x3c40);
 etcCharacter = ConvertBgra5551To4bpp(image, new Point(88, 272), etcInversePalette);
-etcCharacter.CopyTo(sprites, 0x7860);
+etcCharacter.CopyTo(sprites, 0x3c60);
 etcCharacter = ConvertBgra5551To4bpp(image, new Point(64, 280), etcInversePalette);
-etcCharacter.CopyTo(sprites, 0x7900);
+etcCharacter.CopyTo(sprites, 0x3d00);
 etcCharacter = ConvertBgra5551To4bpp(image, new Point(72, 280), etcInversePalette);
-etcCharacter.CopyTo(sprites, 0x7920);
+etcCharacter.CopyTo(sprites, 0x3d20);
 etcCharacter = ConvertBgra5551To4bpp(image, new Point(80, 280), etcInversePalette);
-etcCharacter.CopyTo(sprites, 0x7940);
+etcCharacter.CopyTo(sprites, 0x3d40);
 etcCharacter = ConvertBgra5551To4bpp(image, new Point(88, 280), etcInversePalette);
-etcCharacter.CopyTo(sprites, 0x7960);
+etcCharacter.CopyTo(sprites, 0x3d60);
 
-using var spriteFile = File.OpenWrite("graphics/overworld-sprites.4bpp");
+using var spriteFile = File.OpenWrite("assets/graphics/overworld-sprites.4bpp");
 spriteFile.Write(sprites);
 spriteFile.Close();
 
-using var paletteFile = File.OpenWrite("graphics/overworld-sprite-palettes.pal");
+using var paletteFile = File.OpenWrite("assets/graphics/overworld-sprite-palettes.pal");
 paletteFile.Write(palettes);
 paletteFile.Close();
 
@@ -289,7 +289,7 @@ byte[] ConvertBgra5551To4bpp(Image<Bgra5551> image, Point characterPos, Dictiona
 			var row = accessor.GetRowSpan(characterPos.Y + y);
 			for (int x = 0; x < 8; x++)
 			{
-				var actualX = flipped ? characterPos.X + 7 - x : characterPos.X + x;
+				var actualX = flipped ? characterPos.X + x : characterPos.X + 7 - x;
 				var color = (ushort)(row[actualX].PackedValue & 0x7fff);
 				var paletteIndex = palette[color];
 				buffer[2*y     ] |= (byte)(((paletteIndex & 0x01)     ) << x);

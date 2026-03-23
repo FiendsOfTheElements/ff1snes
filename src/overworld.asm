@@ -21,12 +21,13 @@
 OverworldChr:        .incbin "graphics/overworld-chr.m7"         ; 16 KB
 CompressedOverworld: .incbin "data/overworld-map.bin"            ; 16 KB, filling out the entire bank
 .segment "OWSPRITE"
-OverworldSprites:    .incbin "graphics/overworld-sprites.4bpp"   ; 12 KB
+OverworldSprites:    .incbin "graphics/overworld-sprites.4bpp"   ; 16 KB
 
 .segment "CODE"
 
 OverworldTilemaps:       .incbin "data/overworld-tilemaps.bin"
 OverworldTileProperties: .incbin "data/overworld-tileproperties.bin"
+OverworldSpritePalettes: .incbin "graphics/overworld-sprite-palettes.pal"
 
 OverworldPalette:
 	COLOR  0,  0,  0
@@ -45,25 +46,6 @@ OverworldPalette:
 	COLOR  0, 21,  0
 	COLOR 23, 31,  3
 	COLOR  0, 21,  0
-
-OverworldSpritePalette:
-	COLOR  0,  0,  0
-	COLOR  0,  0,  0
-	COLOR 27,  1, 16
-	COLOR 30, 30, 10
-	COLOR  0,  0,  0
-	COLOR  0,  0,  0
-	COLOR  1, 13, 25
-	COLOR 30, 30, 10
-	COLOR  0,  0,  0
-	COLOR  0,  0,  0
-	COLOR 27, 19,  1
-	COLOR 30, 30, 10
-	COLOR  0,  0,  0
-	COLOR  0,  0,  0
-	COLOR 31, 31, 31
-	COLOR 30, 30, 10
-
 
 MAPPOSX  = $1000 ; position in pixels
 MAPPOSY  = $1002
@@ -133,7 +115,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	jsr LoadOverworldCharacters
 	jsr LoadOverworldPalette
 	jsr LoadOverworldSprites
-	jsr LoadOverworldSpritePalette
+	jsr LoadOverworldSpritePalettes
 	jsr LoadOverworldMapData
 
 	jsr SetupVideo
@@ -571,7 +553,7 @@ Done:
 	stx DMA0ADDAL                 ; read from overworld sprite data
 	lda #BANK_OWSPRITE            ; which is in this bank
 	sta DMA0ADDAH
-	ldx #$3000                    ; write 12 KB (128 bytes * 6 frames * 16 classes/vehicles)
+	ldx #$4000                    ; write 16 KB (128 bytes * 8 frames * 16 classes/vehicles)
 	stx DMA0AMTL
 	lda #$01
 	sta DMA0PARAM                 ; configure DMA0 for A->B, inc A address, 2 bytes to 2 registers (VMDATAL/H)
@@ -579,7 +561,7 @@ Done:
 	rts
 .endproc
 
-.proc LoadOverworldSpritePalette
+.proc LoadOverworldSpritePalettes
 	rep #$20        ; set A to 16-bit so we can
 	lda #$0000      ; clear the high byte
 	sep #$20        ; set A to 8-bit
@@ -590,13 +572,23 @@ Done:
 
 	lda #$80
 	sta CGADD       ; start at CGRAM address $80
-	ldx #$0000
-Loop:
-	lda OverworldSpritePalette, X ; get a byte of palette data
-	sta CGDATA                    ; write it to CGRAM
+	ldx #$0000      ; and palette 0
+@PartyLoop:
+	lda OverworldSpritePalettes, X ; get a byte of palette data
+	sta CGDATA                     ; write it to CGRAM
 	inx
-	cpx #$0020                    ; length of palette data
-	bne Loop
+	cpx #$0080                     ; length of palette data for 4 party members
+	bne @PartyLoop
+
+	lda #$C0
+	sta CGADD       ; start at CGRAM address $C0
+	ldx #$00C0      ; also sprite palette address $C0, vehicles
+@VehicleLoop:
+	lda OverworldSpritePalettes, X ; get a byte of palette data
+	sta CGDATA                     ; write it to CGRAM
+	inx
+	cpx #$00F0                     ; length of palette data for 3 vehicles
+	bne @VehicleLoop
 
 	rts
 .endproc

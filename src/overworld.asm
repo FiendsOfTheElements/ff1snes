@@ -1119,9 +1119,9 @@ CheckEncounter:               ; Finally, check for an enemy encounter.
 	sta AirshipSprite
 	lda TempY
 	sta AirshipSprite + 1
-	lda #$44
+	lda #$a8
 	sta AirshipSprite + 2
-	lda #$11
+	lda #$1b
 	sta AirshipSprite + 3
 	lda TempX + 1     ; do the high bit of the X position
 	beq @ResetAirshipSpriteH
@@ -1142,9 +1142,9 @@ CheckEncounter:               ; Finally, check for an enemy encounter.
 	sta ShipSprite
 	lda TempY
 	sta ShipSprite + 1
-	lda #$28
+	lda #$88
 	sta ShipSprite + 2
-	lda #$11
+	lda #$19
 	sta ShipSprite + 3
 	lda TempX + 1     ; do the high bit of the X position
 	beq @ResetShipSpriteH

@@ -269,7 +269,7 @@ ushort[] GetPalette(Dictionary<ushort, int> inversePalette)
 	foreach (var color in inversePalette.Keys)
 	{
 		int index = inversePalette[color];
-		palette[index] = color;
+		palette[index] = (ushort)(((color & 0x001f) << 10) | (color & 0x03e0) | ((color & 0x7c00) >> 10));
 	}
 
 	return palette;

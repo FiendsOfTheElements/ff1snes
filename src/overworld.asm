@@ -70,6 +70,7 @@ MOVE_TO_POS     = $100F ; 2 bytes, where are we moving to
 SHIP_POS        = $1011 ; 2 bytes
 AIRSHIP_POS     = $1013 ; 2 bytes
 AIRSHIP_TRANSITION = $1015 ; 2 bytes
+CURR_CLASS      = $1017 ; 1 byte, this is temporary, will become current party member
 
 CharacterSprite  = OamMirror     ; sprite memory locations
 AirshipSprite    = OamMirror + 4
@@ -95,6 +96,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	sta FACEDIR
 	lda #Vehicle_Foot       ; be on foot
 	sta CURR_VEHICLE
+	stz CURR_CLASS          ; be fighter
 	rep #$30                ; A,X,Y to 16-bit
 	ldx #START_POSITION_X   ; set the initial scroll
 	stx MAPPOSX
@@ -1016,103 +1018,87 @@ CheckEncounter:               ; Finally, check for an enemy encounter.
 
 .proc SetOverworldCharacterObj
 	; We need to calculate the animation frame to use here.
-	; There's a downward, upward, and leftward facing sprite, and two
+	; There's a sprite facing each of the four directions, and two
 	; frames of animation for each.  12 character classes, ship, airship,
 	; and canoe.
+	Temp        = $00
+	TempPalette = $02
 	sep #$20             ; set A to 8-bit
 	lda #$78             ; player sprite position is $78, $67
 	sta CharacterSprite
 	lda #$67
 	sta CharacterSprite + 1
-	lda FACEDIR          ; get the facing direction
-	cmp #DirRight        ; if we're facing right,
-	bne :+
-	dec                  ; then load the facing left sprite,
-	pha                  ; save it
-	lda #$50             ; and flip the sprite horizontally
-	sta CharacterSprite + 3
-	pla                  ; recall the sprite
-	jmp FlipDone
-:
-	pha
-	lda #$10             ; otherwise no flip, 1 priority, 0th palette
-	sta CharacterSprite + 3
-	pla                  ; recall the sprite
-FlipDone:
-	dec                  ; walk direction minus 1 gets us the index
-	asl                  ; times 2, since there are 2 frames of animation
-	asl                  ; times 2 again?  maybe because these sprites are 16 pixels wide
-	pha                  ; save this, this is the sprite we want
-	rep #$20             ; A to 16-bit
-	lda MAPPOSX          ; we need to see if we should load frame 2
-	and #$0008           ; see if we've walked 8 pixels, result will be 0 if we have because we're offset by 8
-	bne :+
-	sep #$20             ; A back to 8-bit
-	pla                  ; fetch the sprite
-	inc                  ; we want the next one
-	inc
-	jmp AnimationDone
-:
-.a16                     ; need the hint here that A is still 16-bit
-	lda MAPPOSY          ; we might be walking vertically
-	and #$0008
-	bne :+
-	sep #$20             ; A back to 8-bit
-	pla                  ; fetch the sprite
-	inc                  ; we want the next one
-	inc
-	jmp AnimationDone
-:
-	sep #$20             ; A back to 8-bit
-	pla                  ; fetch the sprite
-AnimationDone:
-	pha                  ; save the sprite
-	lda CURR_VEHICLE     ; see what vehicle we're in
+
+	; Basic formula is $20*class + $4*(FACEDIR-1) + $2*animation
+	; where class is 0-11, FACEDIR is as used, and animation is 0 or 1.
+@CheckShip:
+	lda CURR_VEHICLE
 	cmp #Vehicle_Ship
 	bne @CheckAirship
+	lda #$04
+	sta TempPalette
 	lda #$0c
 	bra @GetOffset
 @CheckAirship:
 	cmp #Vehicle_Airship
 	bne @CheckCanoe
+	lda #$05
+	sta TempPalette
 	lda #$0d
 	bra @GetOffset
 @CheckCanoe:
 	cmp #Vehicle_Canoe
 	bne @OnFoot
+	lda #$06
+	sta TempPalette
 	lda #$0e
 	bra @GetOffset
 @OnFoot:
-	lda #$00
-@GetOffset:              ; first we need to multiply by 12.
-	Temp = $00
-	pha
-	asl                  ; we do this by multiplying by 2
-	sta Temp
-	pla                  ; and then adding the original value
-	adc Temp             ; we know carry is clear here because of asl earlier
+	lda CURR_CLASS
+	sta TempPalette      ; use the class palette
+@GetOffset:
+	rep #$20             ; A to 16-bit
+	asl                  ; multiply by $20
 	asl
-	asl                  ; now multiply by 4 to complete multiplication by 12
+	asl
+	asl
+	asl
+	sta Temp             ; save that
+	lda FACEDIR          ; get facing direction
+	and #$00ff           ; facing direction is one byte
+	dec                  ; facing direction is 1-based
+	asl                  ; times 4
+	asl
+	ora Temp             ; like adding, but we know the bits don't overlap
 	sta Temp
-	pla                  ; get back our original sprite value
-	adc Temp             ; and add the offset, we know carry is clear again
-	; Now we do something weird.  Because sprites are also 16 pixels high,
-	; every 16 bytes we need to advance an additional 16 bytes to account for
-	; the lower half of the sprite.
-	pha                  ; save our calculated value
-	and #$0f             ; get the lower 4 bits
+	lda MAPPOSX          ; we need to see if we should load frame 2
+	and #$0008           ; see if we've walked 8 pixels, result will be 0 if we have because we're offset by 8
+	bne @CheckVertical
+	lda Temp
+	inc                  ; get the alternate animation frame
+	inc
 	sta Temp
-	pla                  ; recall our value
-	and #$f0             ; get the upper 4 bits (this is like the row number)
-	asl                  ; double the row number
-	pha
-	lda #$00
-	adc #$00             ; get the overflow
-	tsb CharacterSprite + 3 ; set the sprite page bit
-	pla
-	ora Temp             ; get the lower 4 bits back
-	sta CharacterSprite + 2 ; and that's the sprite tile.
-	lda #$01             ; reset the high bit of the x position
+	bra @AnimationDone
+@CheckVertical:
+	lda MAPPOSY          ; we need to see if we should load frame 2
+	and #$0008           ; see if we've walked 8 pixels, result will be 0 if we have because we're offset by 8
+	bne @AnimationDone
+	lda Temp
+	inc                  ; get the alternate animation frame
+	inc
+	sta Temp
+@AnimationDone:
+	lda Temp                ; get the sprite
+	sep #$20                ; A to 8-bit
+	sta CharacterSprite + 2 ; lower 8 bits of sprite tile
+	xba                     ; get the high byte back
+	ora #$10                ; set priority
+	sta Temp                ; save that
+	lda TempPalette
+	asl                     ; palette bits are 1-3
+	ora Temp                ; OR with the priority and high bit of sprite tile
+	sta CharacterSprite + 3 ; set the sprite page bit
+	lda #$01                ; reset the high bit of the x position
 	trb CharacterSpriteH
 	rts
 .endproc

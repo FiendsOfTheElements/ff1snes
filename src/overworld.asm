@@ -582,12 +582,12 @@ Done:
 
 	lda #$C0
 	sta CGADD       ; start at CGRAM address $C0
-	ldx #$00C0      ; also sprite palette address $C0, vehicles
+	ldx #$0180      ; also sprite palette address $C0, vehicles
 @VehicleLoop:
 	lda OverworldSpritePalettes, X ; get a byte of palette data
 	sta CGDATA                     ; write it to CGRAM
 	inx
-	cpx #$00F0                     ; length of palette data for 3 vehicles
+	cpx #$01E0                     ; length of palette data for 3 vehicles
 	bne @VehicleLoop
 
 	rts

@@ -619,6 +619,18 @@ Done:
 	rep #$20                ; set A to 16-bit
 	sep #$10                ; set X,Y to 8-bit
 
+CheckRButton:
+	lda JoyTrigger1         ; see if R was just pressed
+	and #BUTTON_R
+	beq CheckMoving
+	sep #$20                ; A briefly to 8-bit
+	lda CURR_CLASS
+	inc
+	and #$03
+	sta CURR_CLASS
+	rep #$20                ; back to 16-bit
+
+CheckMoving:
 	ldx MOVEDIR             ; see if we're already moving
 	bne MoveOK
 

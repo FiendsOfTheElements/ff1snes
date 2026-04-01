@@ -248,7 +248,7 @@ void UnpackCharacterSprites()
 void UnpackOverworldGraphics()
 {
 	using var image = Image.Load<Bgra5551>("packs/ff4like/OverworldTiles.png");
-	var inversePalette = GetInversePalette(image, new Rectangle(0, 0, 144, 256));
+	var inversePalette = GetInversePalette(image, new Rectangle(0, 0, 144, 240));
 	var palette = GetPalette(inversePalette, 128);
 
 	// We need to generate tilemaps and the character graphics themselves.
@@ -256,15 +256,16 @@ void UnpackOverworldGraphics()
 	// that has the graphics for that tile.  So the graphicsMap maps which graphics belong to
 	// which original map tile.
 	(int x, int y)[] graphicsMap = [
-		(  0,   0), ( 96, 144), (112, 144), (  0,  16), ( 16,  16), ( 32,  16), ( 96,  16), (112,  16), (128,  16), ( 96, 112), (112, 112), ( 48, 192), ( 64, 192), (128, 112), ( 32,   0), (  0, 240),
-		(  0,  64), ( 16,  64), ( 32,  64), (  0,  32), ( 16,  32), ( 32,  32), ( 96,  32), (112,  32), (128,  32), ( 96, 128), (112, 128), ( 48, 208), ( 64, 208), (128, 128), (128, 144), (128, 224),
-		(  0,  80), ( 16,  80), ( 32,  80), (  0,  48), ( 16,  48), ( 32,  48), ( 96,  48), (112,  48), (128,  48), ( 48, 208), ( 64, 208), ( 32,   0), ( 96, 160), (112, 160), (128, 160), ( 32,   0),
-		(  0,  96), ( 16,  96), ( 32,   0), ( 24,  96), ( 32,   0), ( 32,   0), (112,  80), (112,  80), ( 48, 208), ( 64, 208), ( 32,   0), ( 80, 160), ( 80, 160), ( 80, 160), ( 80, 160), ( 80, 160),
-		( 48,  16), ( 80,  16), ( 96,  64), (128,  64), ( 64,  32), (112,  80), ( 48,   0), (  0, 176), ( 16, 176), ( 96, 176), ( 96, 192), ( 80, 160), (112, 160), (112, 176), (112, 192), ( 80, 160),
-		( 48,  48), ( 80,  48), ( 96,  96), (128,  96), ( 64,  80), ( 64, 128), ( 32, 192), (  0, 192), ( 16, 192), ( 32, 176), (112, 176), ( 80, 176), ( 80, 208), (112, 176), (128, 208), (128, 192),
-		( 48,  64), ( 80,  64), ( 48, 112), ( 80, 112), ( 48, 160), ( 64, 160), ( 16,   0), ( 16,   0), ( 16,   0), ( 16,   0), ( 16,   0), ( 80, 192), ( 16,   0), ( 96, 176), ( 16,   0), (128, 196),
-		( 48,  96), ( 80,  96), ( 48, 144), ( 80, 144), ( 48, 176), ( 64, 176), (  0,   0), ( 64, 240), ( 80, 240), ( 96, 240), (112, 240), ( 80, 208), ( 96, 208), ( 96, 208), (112, 208), (128, 208),
+		(  0,   0), ( 32, 144), ( 48, 144), (  0,  16), ( 16,  16), ( 32,  16), ( 96,  16), (112,  16), (128,  16), ( 32, 112), ( 48, 112), (  0, 144), ( 16, 144), ( 32, 160), ( 32,   0), ( 96, 144),
+		(  0,  64), ( 16,  64), ( 32,  64), (  0,  32), ( 16,  32), ( 32,  32), ( 96,  32), (112,  32), (128,  32), ( 32, 128), ( 48, 128), (  0, 160), ( 16, 160), ( 32, 192), ( 48, 160), (128, 128),
+		(  0,  80), ( 16,  80), ( 32,  80), (  0,  48), ( 16,  48), ( 32,  48), ( 96,  48), (112,  48), (128,  48), (  0, 160), ( 16, 160), ( 32,   0), ( 64, 160), ( 80, 160), ( 96, 160), ( 32,   0),
+		(  0,  96), ( 16,  96), ( 32,   0), ( 32,  96), ( 32,   0), ( 32,   0), (112,  80), (112,  80), (  0, 160), ( 16, 160), ( 32,   0), (112, 160), (  0,   0), (  0,   0), (  0,   0), (112, 176),
+		( 48,  16), ( 80,  16), ( 96,  64), (128,  64), ( 64,  32), (112,  80), ( 48,   0), ( 64, 112), ( 80, 112), (128, 160), (128, 160), (112, 160), (128, 160), (128, 176), (128, 160), (112, 176),
+		( 48,  48), ( 80,  48), ( 96,  96), (128,  96), ( 64,  80), (128, 112), ( 64, 144), ( 64, 128), ( 80, 128), ( 80, 144), (128, 176), (112, 160), ( 48, 176), (128, 176), ( 96, 176), (112, 176),
+		( 48,  64), ( 80,  64), ( 96, 112), (112, 112), (  0, 112), ( 16, 112), ( 16,   0), ( 16,   0), ( 16,   0), ( 16,   0), ( 16,   0), (112, 160), ( 16,   0), (128, 160), ( 16,   0), (112, 176),
+		( 48,  96), ( 80,  96), ( 96, 128), (112, 128), (  0, 128), ( 16, 128), (  0,   0), (  0,   0), (128, 144), (  0,   0), (  0,   0), ( 48, 176), ( 80, 160), ( 64, 176), ( 80, 176), ( 96, 176),
 	];
+	Console.WriteLine($"{graphicsMap.Distinct().Count()} unique map tiles");
 
 	// The tileMap stores which 8x8 characters make up each tile.  Tiles can be flipped horizontally
 	// or vertically, so we need to compare to flipped versions of tiles we've seen before.
@@ -285,8 +286,9 @@ void UnpackOverworldGraphics()
 		hash = HashChr(chr);
 		if (!seenChrLookup.ContainsKey(hash))
 		{
-			chr.CopyTo(chrGraphics, 64*seenChrLookup.Count);
-			seenChrLookup.Add(hash, seenChrLookup.Count);
+			int thisChrIndex = seenChrLookup.Count;
+			chr.CopyTo(chrGraphics, 64*thisChrIndex);
+			seenChrLookup.Add(hash, thisChrIndex);
 		}
 		ulTilemap[tileIndex] = (byte)seenChrLookup[hash];
 
@@ -320,11 +322,22 @@ void UnpackOverworldGraphics()
 
 	Console.WriteLine($"{seenChrLookup.Count} unique chr");
 
-	using var paletteFile = File.OpenWrite("assets/graphics/overworld-sprite-palettes.pal");
-	var paletteBytes = new byte[256];
-	Buffer.BlockCopy(palette, 0, paletteBytes, 0, 256);
+	using var paletteFile = File.OpenWrite("assets/graphics/overworld-map-palette.pal");
+	var paletteBytes = new byte[128];
+	Buffer.BlockCopy(palette, 0, paletteBytes, 0, 128);
 	paletteFile.Write(paletteBytes);
 	paletteFile.Close();
+
+	using var overworldChrFile = File.OpenWrite("assets/graphics/overworld-chr.m7");
+	overworldChrFile.Write(chrGraphics, 0, 0x4000); // only write 16 KB, if there's more, we need to strip down
+	overworldChrFile.Close();
+
+	using var overworldTilemapFile = File.OpenWrite("assets/data/overworld-tilemaps.bin");
+	overworldTilemapFile.Write(ulTilemap);
+	overworldTilemapFile.Write(urTilemap);
+	overworldTilemapFile.Write(llTilemap);
+	overworldTilemapFile.Write(lrTilemap);
+	overworldTilemapFile.Close();
 }
 
 unsafe int HashChr(byte[] chr)
@@ -419,7 +432,6 @@ byte[] ConvertBgra5551To4bpp(Image<Bgra5551> image, Point characterPos, Dictiona
 byte[] ConvertBgra5551To8bpp(Image<Bgra5551> image, Point characterPos, Dictionary<ushort, int> inversePalette, bool flipped = false)
 {
 	byte[] buffer = new byte[64];
-	Console.WriteLine($"({characterPos.X}, {characterPos.Y})");
 	image.ProcessPixelRows(accessor =>
 	{
 		for (int y = 0; y < 8; y++)
@@ -430,11 +442,8 @@ byte[] ConvertBgra5551To8bpp(Image<Bgra5551> image, Point characterPos, Dictiona
 				var color = (ushort)(row[characterPos.X + x].PackedValue & 0x7fff);
 				var paletteIndex = inversePalette[color];
 				buffer[8*y + x] = (byte)paletteIndex;
-				Console.Write($"{(byte)paletteIndex:X2}");
 			}
-			Console.WriteLine();
 		}
-		Console.WriteLine();
 	});
 
 	return buffer;

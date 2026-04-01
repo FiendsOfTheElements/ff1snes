@@ -28,24 +28,7 @@ OverworldSprites:    .incbin "graphics/overworld-sprites.4bpp"   ; 16 KB
 OverworldTilemaps:       .incbin "data/overworld-tilemaps.bin"
 OverworldTileProperties: .incbin "data/overworld-tileproperties.bin"
 OverworldSpritePalettes: .incbin "graphics/overworld-sprite-palettes.pal"
-
-OverworldPalette:
-	COLOR  0,  0,  0
-	COLOR  0, 21,  0
-	COLOR 23, 23, 23
-	COLOR 31, 31, 31
-	COLOR  0,  0,  0
-	COLOR  0, 21,  0
-	COLOR 31, 20,  8
-	COLOR 31, 28, 21
-	COLOR  0,  0,  0
-	COLOR  0, 21,  0
-	COLOR 20, 28, 31
-	COLOR  7, 23, 31
-	COLOR  0,  0,  0
-	COLOR  0, 21,  0
-	COLOR 23, 31,  3
-	COLOR  0, 21,  0
+OverworldPalette:        .incbin "graphics/overworld-map-palette.pal"
 
 MAPPOSX  = $1000 ; position in pixels
 MAPPOSY  = $1002
@@ -168,7 +151,7 @@ Loop:
 	lda OverworldPalette, X ; get a byte of palette data
 	sta CGDATA              ; write it to CGRAM
 	inx
-	cpx #$0020              ; length of palette data
+	cpx #$0080              ; length of palette data
 	bne Loop
 
 	rts

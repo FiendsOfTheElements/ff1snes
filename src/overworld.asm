@@ -8,6 +8,8 @@
 
 .export LoadOverworld
 .export DoOverworldMovement
+.export SetOverworldCharacterObj
+.export SetOverworldVehicleObj
 .export CopyTileMapBufferToVRAM
 .export SetMode7Matrix
 .export SetupAirshipMode7HDMA
@@ -727,8 +729,6 @@ DoneMoving:
 	jsr LandedOnSquare
 
 Done:
-	jsr SetOverworldCharacterObj
-	jsr SetOverworldVehicleObj
 	rts
 .endproc
 
@@ -1018,6 +1018,7 @@ CheckEncounter:               ; Finally, check for an enemy encounter.
 	; and canoe.
 	Temp        = $00
 	TempPalette = $02
+	php
 	sep #$20             ; set A to 8-bit
 	lda #$78             ; player sprite position is $78, $67
 	sta CharacterSprite
@@ -1053,6 +1054,7 @@ CheckEncounter:               ; Finally, check for an enemy encounter.
 	sta TempPalette      ; use the class palette
 @GetOffset:
 	rep #$20             ; A to 16-bit
+	and #$00ff           ; we just loaded 8-bit, so mask off whatever was up there
 	asl                  ; multiply by $20
 	asl
 	asl
@@ -1095,6 +1097,7 @@ CheckEncounter:               ; Finally, check for an enemy encounter.
 	sta CharacterSprite + 3 ; set the sprite page bit
 	lda #$01                ; reset the high bit of the x position
 	trb CharacterSpriteH
+	plp
 	rts
 .endproc
 
@@ -1211,9 +1214,11 @@ CheckEncounter:               ; Finally, check for an enemy encounter.
 .endproc
 
 .proc TakeoffAirship
-@Loop:
 	ldx #Vehicle_Airship
 	stx CURR_VEHICLE
+	jsr SetOverworldCharacterObj
+	jsr SetOverworldVehicleObj
+@Loop:
 	wai
 	lda AIRSHIP_TRANSITION
 	inc

@@ -10,7 +10,7 @@
 	.byte $20 ; LoROM, SlowROM
 	.byte $02 ; Battery SRAM, no co-processor
 	.byte $07 ; 128K ROM (we'll increase this later)
-	.byte $01 ; 2K SRAM (can increase if needed)
+	.byte $05 ; 32K SRAM (can increase if needed)
 	.byte $01 ; North America (there doesn't seem to be a standard for "any region")
 	.byte $33 ; Developer ID ($33 means use ROMINFOEX)
 	.byte $00 ; Original version (1.0)
@@ -38,6 +38,8 @@
 
 .import LoadOverworld
 .import DoOverworldMovement
+.import SetOverworldCharacterObj
+.import SetOverworldVehicleObj
 .import CopyTileMapBufferToVRAM
 .import SetMode7Matrix
 .import SetupAirshipMode7HDMA
@@ -92,6 +94,8 @@
 
 	jsr GetJoypadInputs
 	jsr DoOverworldMovement
+	jsr SetOverworldCharacterObj
+	jsr SetOverworldVehicleObj
 
 	jmp GameLoop
 .endproc

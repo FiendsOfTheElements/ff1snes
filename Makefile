@@ -6,11 +6,7 @@ ff1snes.smc: $(OBJ)
 	ld65 -C memory-map.cfg --dbgfile ff1snes.dbg $(OBJ) -o ff1snes.smc
 
 rip:
-	dotnet run --project utils/ff1ripper
-	mv *.m7 assets/graphics
-	mv *.4bpp assets/graphics
-	mv *.bin assets/data
-	utils/sprite-unpacker/unpack-sprites.cs
+	dotnet run --project generate-assets/GenerateAssets/GenerateAssets.csproj
 
 obj/%.o: src/%.asm $(INC) rip
 	@mkdir -p obj

@@ -1,5 +1,10 @@
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using System.Runtime.ConstrainedExecution;
+
+namespace GenerateAssets;
+
+using static ImageRipper;
 
 public static class UnpackGraphics
 {
@@ -335,112 +340,93 @@ public static class UnpackGraphics
 		overworldTilemapFile.Close();
 	}
 
-	private static unsafe int HashChr(byte[] chr)
+	public static void UnpackTitleScreen()
 	{
-		const int p = 16777619;
-		int hash = -2128831035;
-		fixed (byte* chrptr = chr)
+		using var image = Image.Load<Bgra5551>("packs/ff4like/TitleScreen.png");
+		var inversePalette = GetInversePalette(image, new Rectangle(0, 0, 256, 240));
+		var palette = GetPalette(inversePalette, 16);
+
+		byte[] sprites = new byte[0x4000]; // half a bank full of sprites
+
+		Rip16x16Sprite(image, new Point(2, 56), 15, inversePalette, sprites, 0); // Top of F
+		Rip16x16Sprite(image, new Point(2, 72), 15, inversePalette, sprites, 1); // Middle of F
+		Rip16x16Sprite(image, new Point(2, 88), 15, inversePalette, sprites, 2); // Bottom of F (or I/T/Y)
+
+		Rip16x16Sprite(image, new Point(18, 56), 10, inversePalette, sprites, 3); // Top of I (or L)
+		Rip16x16Sprite(image, new Point(18, 72), 10, inversePalette, sprites, 4); // Middle of I (or T)
+
+		Rip16x16Sprite(image, new Point(29, 56), 16, inversePalette, sprites, 5); // Top of N
+		Rip16x16Sprite(image, new Point(45, 56), 2, inversePalette, sprites, 6); // Top-right of N
+		Rip16x16Sprite(image, new Point(29, 72), 16, inversePalette, sprites, 7); // Middle of N
+		Rip16x16Sprite(image, new Point(29, 88), 16, inversePalette, sprites, 8); // Bottom of N
+		Rip16x16Sprite(image, new Point(45, 88), 2, inversePalette, sprites, 9); // Bottom-right of N
+
+		Rip16x16Sprite(image, new Point(49, 56), 16, inversePalette, sprites, 10); // Top of A
+		Rip16x16Sprite(image, new Point(49, 72), 16, inversePalette, sprites, 11); // Middle of A
+		Rip16x16Sprite(image, new Point(49, 88), 16, inversePalette, sprites, 12); // Bottom of A
+		Rip16x16Sprite(image, new Point(65, 88), 3, inversePalette, sprites, 13); // Bottom-right of A
+
+		Rip16x16Sprite(image, new Point(68, 72), 15, inversePalette, sprites, 14); // Middle of L
+		Rip16x16Sprite(image, new Point(68, 88), 15, inversePalette, sprites, 15); // Bottom of L
+
+		Rip16x16Sprite(image, new Point(186, 56), 14, inversePalette, sprites, 16); // Top of T
+
+		Rip16x16Sprite(image, new Point(221, 56), 13, inversePalette, sprites, 17); // Top of S
+		Rip16x16Sprite(image, new Point(221, 72), 13, inversePalette, sprites, 18); // Middle of S
+		Rip16x16Sprite(image, new Point(221, 88), 13, inversePalette, sprites, 19); // Bottom of S
+
+		Rip16x16Sprite(image, new Point(235, 56), 16, inversePalette, sprites, 20); // Top of Y
+		Rip16x16Sprite(image, new Point(251, 56), 3, inversePalette, sprites, 21); // Top-right of Y
+		Rip16x16Sprite(image, new Point(235, 72), 16,inversePalette, sprites, 22); // Middle of Y
+
+		Rip32x32Sprite(image, new Point(93, 52), 29, inversePalette, sprites, 8); // Top of crystal
+		Rip32x32Sprite(image, new Point(93, 84), 29, inversePalette, sprites, 9); // Bottom of crystal
+
+		Rip32x32Sprite(image, new Point(130, 107), 32, inversePalette, sprites, 10); // Superizer
+		Rip32x32Sprite(image, new Point(162, 107), 32, inversePalette, sprites, 11); // Superizer
+		Rip32x32Sprite(image, new Point(194, 107), 32, inversePalette, sprites, 12); // Superizer
+		Rip32x32Sprite(image, new Point(226, 107), 27, inversePalette, sprites, 13); // Superizer
+
+		using var paletteFile = File.OpenWrite("assets/graphics/title-screen-palette.pal");
+		var paletteBytes = new byte[32];
+		Buffer.BlockCopy(palette, 0, paletteBytes, 0, 32);
+		paletteFile.Write(paletteBytes);
+		paletteFile.Close();
+
+		using var spritesFile = File.OpenWrite("assets/graphics/title-screen-sprites.4bpp");
+		spritesFile.Write(sprites);
+		spritesFile.Close();
+	}
+
+	private static void Rip16x16Sprite(Image<Bgra5551> image, Point origin, int width, Dictionary<ushort, int> inversePalette, byte[] buffer, int spriteIndex)
+	{
+		byte[] chr;
+		int row = spriteIndex / 8;
+		int col = spriteIndex % 8;
+		int offset = (row * 16 * 2 + col * 2) * 32;
+		chr = ConvertBgra5551To4bpp(image, origin, inversePalette, limit: width);
+		chr.CopyTo(buffer, offset);
+		chr = ConvertBgra5551To4bpp(image, origin + new Size(8, 0), inversePalette, limit: width - 8);
+		chr.CopyTo(buffer, offset + 32);
+		chr = ConvertBgra5551To4bpp(image, origin + new Size(0, 8), inversePalette, limit: width);
+		chr.CopyTo(buffer, offset + 16 * 32);
+		chr = ConvertBgra5551To4bpp(image, origin + new Size(8, 8), inversePalette, limit: width - 8);
+		chr.CopyTo(buffer, offset + 16 * 32 + 32);
+	}
+
+	private static void Rip32x32Sprite(Image<Bgra5551> image, Point origin, int width, Dictionary<ushort, int> inversePalette, byte[] buffer, int spriteIndex)
+	{
+		byte[] chr;
+		int row = spriteIndex / 4;
+		int col = spriteIndex % 4;
+		int offset = (row * 16 * 4 + col * 4) * 32;
+		for (int j = 0; j < 4; j++)
 		{
-			int* intptr = (int*)chrptr;
-			for (int i = 0; i < 16; i++)
+			for (int i = 0; i < 4; i++)
 			{
-				hash = (hash ^ intptr[i]) * p;
+				chr = ConvertBgra5551To4bpp(image, origin + new Size(8 * i, 8 * j), inversePalette, limit: width - i * 8);
+				chr.CopyTo(buffer, offset + j * 16 * 32 + i * 32);
 			}
 		}
-
-		return hash;
-	}
-
-	private static Dictionary<ushort, int> GetInversePalette(Image<Bgra5551> image, Rectangle region)
-	{
-		var palette = new Dictionary<ushort, int>();
-		palette.Add(0x7c1f, 0); // color 0 is #FF00FF
-		int colorIndex = 0;
-		image.ProcessPixelRows(accessor =>
-		{
-			for (int y = 0; y < region.Height; y++)
-			{
-				var row = accessor.GetRowSpan(region.Top + y);
-				for (int x = 0; x < region.Width; x++)
-				{
-					var color = (ushort)(row[region.Left + x].PackedValue & 0x7fff);
-					if (!palette.ContainsKey(color))
-					{
-						colorIndex++;
-						palette.Add(color, colorIndex);
-					}
-				}
-			}
-		});
-
-		return palette;
-	}
-
-	/// <summary>
-	/// Converts a reverse-lookup palette to an array of 16-bit colors.
-	/// Throws if the inverse palette contains more colors than the count provided.
-	/// </summary>
-	private static ushort[] GetPalette(Dictionary<ushort, int> inversePalette, int count)
-	{
-		var palette = new ushort[count];
-		foreach (var color in inversePalette.Keys)
-		{
-			int index = inversePalette[color];
-			palette[index] = (ushort)(((color & 0x001f) << 10) | (color & 0x03e0) | ((color & 0x7c00) >> 10));
-		}
-
-		return palette;
-	}
-
-	/// <summary>
-	/// Converts a single 8x8 character from 16-bit to SNES 4bpp.
-	/// </summary>
-	/// <param name="characterPos=">The upper-left corner of an 8x8 character to convert.</param>
-	private static byte[] ConvertBgra5551To4bpp(Image<Bgra5551> image, Point characterPos, Dictionary<ushort, int> inversePalette, bool flipped = false)
-	{
-		byte[] buffer = new byte[32];
-		image.ProcessPixelRows(accessor =>
-		{
-			for (int y = 0; y < 8; y++)
-			{
-				var row = accessor.GetRowSpan(characterPos.Y + y);
-				for (int x = 0; x < 8; x++)
-				{
-					var actualX = flipped ? characterPos.X + x : characterPos.X + 7 - x;
-					var color = (ushort)(row[actualX].PackedValue & 0x7fff);
-					var paletteIndex = inversePalette[color];
-					buffer[2*y     ] |= (byte)(((paletteIndex & 0x01)     ) << x);
-					buffer[2*y +  1] |= (byte)(((paletteIndex & 0x02) >> 1) << x);
-					buffer[2*y + 16] |= (byte)(((paletteIndex & 0x04) >> 2) << x);
-					buffer[2*y + 17] |= (byte)(((paletteIndex & 0x08) >> 3) << x);
-				}
-			}
-		});
-
-		return buffer;
-	}
-
-	/// <summary>
-	/// Converts a single 8x8 character from 16-bit to SNES 8bpp (Mode 7).
-	/// </summary>
-	/// <param name="characterPos=">The upper-left corner of an 8x8 character to convert.</param>
-	private static byte[] ConvertBgra5551To8bpp(Image<Bgra5551> image, Point characterPos, Dictionary<ushort, int> inversePalette, bool flipped = false)
-	{
-		byte[] buffer = new byte[64];
-		image.ProcessPixelRows(accessor =>
-		{
-			for (int y = 0; y < 8; y++)
-			{
-				var row = accessor.GetRowSpan(characterPos.Y + y);
-				for (int x = 0; x < 8; x++)
-				{
-					var color = (ushort)(row[characterPos.X + x].PackedValue & 0x7fff);
-					var paletteIndex = inversePalette[color];
-					buffer[8*y + x] = (byte)paletteIndex;
-				}
-			}
-		});
-
-		return buffer;
 	}
 }

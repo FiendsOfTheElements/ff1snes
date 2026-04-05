@@ -52,24 +52,41 @@ TitleScreenSpriteData: .incbin "data/title-screen-sprites.bin"
 	sta NMITIMEN            ; enable NMI, turn on automatic joypad polling
 
 	lda #$01
-	pha
+	pha                     ; save A because we're going to get interrupted
 @FadeInLoop:
 	wai                     ; wait one frame
 	pla
 	sta INIDISP             ; gradually increase brightness
 	inc
-	pha
+	pha                     ; save A
 	cmp #$10                ; until we've reached full brightness
 	bne @FadeInLoop
-	pla
+	pla                     ; clear the stack
 
 	rep #$20                ; set A to 16-bit
+	lda #%111111111         ; this will count downward, and the upper 5 bits are the fixed color
+	pha                     ; save A because we're going to get interrupted
 @InputLoop:
 	wai
+	pla
+	beq :+                  ; if we hit 0, we can't get any brighter
+	dec
+:
+	pha
+	lsr                     ; divide by 16
+	lsr
+	lsr
+	lsr
+	sep #$20                ; set A to 8-bit
+	ora #$e0                ; all three color channels
+	sta COLDATA             ; set the fixed color
+	rep #$20                ; set A back to 16-bit
+
 	jsr GetJoypadInputs
 	lda JoyTrigger1
 	and #(BUTTON_A | BUTTON_START)
 	beq @InputLoop
+	pla                     ; clear the stack
 
 	rts
 .endproc
@@ -122,4 +139,3 @@ TitleScreenSpriteData: .incbin "data/title-screen-sprites.bin"
 
 	rts
 .endproc
-

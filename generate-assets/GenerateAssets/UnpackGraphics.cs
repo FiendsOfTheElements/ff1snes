@@ -1,6 +1,5 @@
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
-using System.Runtime.ConstrainedExecution;
 
 namespace GenerateAssets;
 
@@ -346,8 +345,40 @@ public static class UnpackGraphics
 		var inversePalette = GetInversePalette(image, new Rectangle(0, 0, 256, 240));
 		var palette = GetPalette(inversePalette, 16);
 
-		byte[] spriteGraphics = new byte[0x2000]; // quarter bank full of sprites
+		byte[] spriteGraphics = new byte[0x2800]; // 10 KB
+		byte[] spriteData = new byte[544];
+		// Initialize all sprites to be off-screen.
+		for (int i = 1; i < 512; i += 4)
+		{
+			spriteData[i] = (byte)0xe0;
+		}
+		for (int i = 512; i < 544; i++)
+		{
+			spriteData[i] = (byte)0x55;
+		}
 
+		// FINAL FANTASY
+		for (int i = 0; i < 8; i++)
+		{
+			Rip32x32Sprite(image, new Point(32 * i, 40), 32, inversePalette, spriteGraphics, i);
+			WriteSpriteData(spriteData, i, new Point(32 * i, 40), 4 * (i % 4) + 4 * 16 * (i / 4), isLarge: true);
+			Rip32x32Sprite(image, new Point(32 * i, 72), 32, inversePalette, spriteGraphics, i + 8);
+			WriteSpriteData(spriteData, i + 8, new Point(32 * i, 72), 4 * (i % 4) + 4 * 16 * (i / 4) + 2 * 4 * 16, isLarge: true);
+		}
+
+		// Superizer
+		Rip32x32Sprite(image, new Point(130, 107), 32, inversePalette, spriteGraphics, 16);
+		Rip32x32Sprite(image, new Point(162, 107), 32, inversePalette, spriteGraphics, 17);
+		Rip32x32Sprite(image, new Point(194, 107), 32, inversePalette, spriteGraphics, 18);
+		Rip32x32Sprite(image, new Point(226, 107), 27, inversePalette, spriteGraphics, 19);
+
+		WriteSpriteData(spriteData, 16, new Point(131, 107), 256, isLarge: true);
+		WriteSpriteData(spriteData, 17, new Point(163, 107), 260, isLarge: true);
+		WriteSpriteData(spriteData, 18, new Point(195, 107), 264, isLarge: true);
+		WriteSpriteData(spriteData, 19, new Point(227, 107), 268, isLarge: true);
+
+		/* This was the old way where I tried to be more memory efficient.  Unfortunately, the bottom row
+		 * of lettering contains too many sprites, and it cuts off the bottom of the F and the I.
 		Rip16x16Sprite(image, new Point(2, 56), 15, inversePalette, spriteGraphics, 0); // Top of F
 		Rip16x16Sprite(image, new Point(2, 72), 15, inversePalette, spriteGraphics, 1); // Middle of F
 		Rip16x16Sprite(image, new Point(2, 88), 15, inversePalette, spriteGraphics, 2); // Bottom of F (or I/T/Y)
@@ -387,8 +418,6 @@ public static class UnpackGraphics
 		Rip32x32Sprite(image, new Point(194, 107), 32, inversePalette, spriteGraphics, 12); // Superizer
 		Rip32x32Sprite(image, new Point(226, 107), 27, inversePalette, spriteGraphics, 13); // Superizer
 
-		byte[] spriteData = new byte[544];
-
 		WriteSpriteData(spriteData, 0, new Point(2, 56), 0, isLarge: false); // Top of F
 		WriteSpriteData(spriteData, 1, new Point(2, 72), 2, isLarge: false); // Middle of F
 		WriteSpriteData(spriteData, 2, new Point(2, 88), 4, isLarge: false); // Bottom of F
@@ -408,7 +437,7 @@ public static class UnpackGraphics
 		WriteSpriteData(spriteData, 13, new Point(48, 88), 40, isLarge: false); // Bottom of A
 		WriteSpriteData(spriteData, 14, new Point(64, 88), 42, isLarge: false); // Bottom-right of A
 	
-		WriteSpriteData(spriteData, 15, new Point(68, 56), 12, isLarge: false); // Top of L
+		WriteSpriteData(spriteData, 15, new Point(68, 56), 6, isLarge: false); // Top of L
 		WriteSpriteData(spriteData, 16, new Point(68, 72), 44, isLarge: false); // Middle of L
 		WriteSpriteData(spriteData, 17, new Point(68, 88), 46, isLarge: false); // Bottom of L
 
@@ -428,8 +457,8 @@ public static class UnpackGraphics
 		WriteSpriteData(spriteData, 29, new Point(183, 88), 34, isLarge: false); // Bottom-right of N
 
 		WriteSpriteData(spriteData, 30, new Point(186, 56), 64, isLarge: false); // Top of T
-		WriteSpriteData(spriteData, 31, new Point(186, 72), 8, isLarge: false); // Middle of T
-		WriteSpriteData(spriteData, 32, new Point(186, 88), 4, isLarge: false); // Bottom of T
+		WriteSpriteData(spriteData, 31, new Point(188, 72), 8, isLarge: false); // Middle of T
+		WriteSpriteData(spriteData, 32, new Point(188, 88), 4, isLarge: false); // Bottom of T
 
 		WriteSpriteData(spriteData, 33, new Point(201, 56), 36, isLarge: false); // Top of A
 		WriteSpriteData(spriteData, 34, new Point(201, 72), 38, isLarge: false); // Middle of A
@@ -443,15 +472,16 @@ public static class UnpackGraphics
 		WriteSpriteData(spriteData, 40, new Point(235, 56), 72, isLarge: false); // Top of Y
 		WriteSpriteData(spriteData, 41, new Point(251, 56), 74, isLarge: false); // Top-right of Y
 		WriteSpriteData(spriteData, 42, new Point(235, 72), 76, isLarge: false); // Middle of Y
-		WriteSpriteData(spriteData, 43, new Point(235, 88), 4, isLarge: false); // Bottom of Y
+		WriteSpriteData(spriteData, 43, new Point(239, 88), 4, isLarge: false); // Bottom of Y
 
-		WriteSpriteData(spriteData, 44, new Point(93, 52), 128, isLarge: false); // Top of Crystal
-		WriteSpriteData(spriteData, 45, new Point(93, 84), 132, isLarge: false); // Bottom of Crystal
+		WriteSpriteData(spriteData, 44, new Point(93, 52), 128, isLarge: true); // Top of Crystal
+		WriteSpriteData(spriteData, 45, new Point(93, 84), 132, isLarge: true); // Bottom of Crystal
 
-		WriteSpriteData(spriteData, 46, new Point(131, 107), 136, isLarge: false); // Superizer
-		WriteSpriteData(spriteData, 47, new Point(163, 107), 140, isLarge: false); // Superizer
-		WriteSpriteData(spriteData, 48, new Point(195, 107), 192, isLarge: false); // Superizer
-		WriteSpriteData(spriteData, 49, new Point(227, 107), 196, isLarge: false); // Superizer
+		WriteSpriteData(spriteData, 46, new Point(131, 107), 136, isLarge: true); // Superizer
+		WriteSpriteData(spriteData, 47, new Point(163, 107), 140, isLarge: true); // Superizer
+		WriteSpriteData(spriteData, 48, new Point(195, 107), 192, isLarge: true); // Superizer
+		WriteSpriteData(spriteData, 49, new Point(227, 107), 196, isLarge: true); // Superizer
+		*/
 
 		using var paletteFile = File.OpenWrite("assets/graphics/title-screen-palette.pal");
 		var paletteBytes = new byte[32];
@@ -505,7 +535,7 @@ public static class UnpackGraphics
 		spriteData[spriteIndex * 4] = (byte)(position.X % 256);
 		spriteData[spriteIndex * 4 + 1] = (byte)(position.Y);
 		spriteData[spriteIndex * 4 + 2] = (byte)(spriteTile % 256);
-		spriteData[spriteIndex * 4 + 3] = (byte)(spriteTile / 256);
+		spriteData[spriteIndex * 4 + 3] = (byte)((spriteTile / 256) | 0b00010000);
 
 		int highIndex = 512 + spriteIndex / 4;
 		int shift = (spriteIndex % 4) * 2;

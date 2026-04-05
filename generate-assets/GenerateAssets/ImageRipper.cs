@@ -77,7 +77,7 @@ public static class ImageRipper
 				for (int x = 0; x < 8; x++)
 				{
 					var actualX = flipped ? characterPos.X + x : characterPos.X + 7 - x;
-					var color = actualX >= characterPos.X + limit ? (ushort)0 : (ushort)(row[actualX].PackedValue & 0x7fff);
+					var color = actualX >= characterPos.X + limit ? (ushort)0x7c1f : (ushort)(row[actualX].PackedValue & 0x7fff);
 					var paletteIndex = inversePalette[color];
 					buffer[2 * y] |= (byte)(((paletteIndex & 0x01)) << x);
 					buffer[2 * y + 1] |= (byte)(((paletteIndex & 0x02) >> 1) << x);

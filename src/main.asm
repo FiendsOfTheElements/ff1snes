@@ -36,6 +36,8 @@
 
 .import GetJoypadInputs
 
+.import LoadTitleScreenAndWaitForInput
+
 .import LoadOverworld
 .import DoOverworldMovement
 .import SetOverworldCharacterObj
@@ -60,12 +62,18 @@
 	txs
 
 	jsr InitializeOam
+	jsr CopyOamMirrorToOAM
+	jsr LoadTitleScreenAndWaitForInput
+
+	jsr InitializeOam
 	jsr LoadOverworld
 
 	jmp GameLoop            ; all initialization is done
 .endproc
 
 .proc InitializeOam
+	rep #$10                ; set X and Y to 16-bit
+	sep #$20                ; set A to 8-bit
 	lda #$e0                ; this will put sprites off the bottom of the screen
 	ldx #$1ff               ; size of main OAM
 @BaseLoop:

@@ -593,6 +593,7 @@ Done:
 
 	lda #$11                ; enable BG1 and sprites
 	sta TM
+	stz CGADSUB             ; disable color math
 
 	lda #$0f
 	sta INIDISP             ; release forced blanking, set screen to full brightness

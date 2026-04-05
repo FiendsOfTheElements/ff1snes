@@ -44,21 +44,32 @@ TitleScreenSpriteData: .incbin "data/title-screen-sprites.bin"
 	sta CGWSEL
 	lda #$81                ; enable color math for BG1, subtract mode
 	sta CGADSUB
-	lda #$f0                ; set fixed color to white
+	lda #$ff                ; set fixed color to white
 	sta COLDATA             ; this should fade the background entirely to black
 
-	lda #$0f
-	sta INIDISP             ; release forced blanking, set screen to full brightness
+	stz INIDISP             ; release forced blanking, set screen to zero brightness
 	lda #$81
 	sta NMITIMEN            ; enable NMI, turn on automatic joypad polling
 
+	lda #$01
+	pha
+@FadeInLoop:
+	wai                     ; wait one frame
+	pla
+	sta INIDISP             ; gradually increase brightness
+	inc
+	pha
+	cmp #$10                ; until we've reached full brightness
+	bne @FadeInLoop
+	pla
+
 	rep #$20                ; set A to 16-bit
-@Loop:
+@InputLoop:
 	wai
 	jsr GetJoypadInputs
 	lda JoyTrigger1
 	and #(BUTTON_A | BUTTON_START)
-	beq @Loop
+	beq @InputLoop
 
 	rts
 .endproc

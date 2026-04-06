@@ -6,6 +6,9 @@ obj/
 *.nes
 *.sfc
 *.smc
+# Or SRAM.
+*.srm
+
 # Debug symbols
 *.sym
 *.dbg

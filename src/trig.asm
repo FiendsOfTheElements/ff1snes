@@ -28,36 +28,36 @@ SineTable:
 	pha               ; save this before we mask it off
 	and #$007F
 	cmp #$0040        ; if we were 64 or 196
-	bne UseTable
+	bne @UseTable
 	lda #$0100        ; then the sine is 1.0
 	sta Temp
-	jmp CheckNegative
+	bra @CheckNegative
 
-UseTable:
+@UseTable:
 	sta Temp
 	and #$0040        ; if we're in the range of 64-127
-	beq Normalized
+	beq @Normalized
 	lda #$0080        ; we do 128 - A to flip the curve horizontally
 	sec
 	sbc Temp          ; subtract the value we saved
 	sta Temp
 
-Normalized:           ; Temp is now in the range 0-63, so we look up the answer from the table
+@Normalized:           ; Temp is now in the range 0-63, so we look up the answer from the table
 	ldx Temp
 	lda SineTable, X
 	and #$00FF        ; We only want the low byte
 	sta Temp          ; Temp is now the answer
 
-CheckNegative:
+@CheckNegative:
 	pla
 	and #$0080        ; check if input was 128-255
-	beq Done
+	beq @Done
 	lda Temp          ; if input was 128-255, we need to multiply by -1
 	eor #$FFFF
 	inc               ; which we do by flipping all the bits and adding 1
 	sta Temp
 
-Done:
+@Done:
 	lda Temp
 	rts
 .endproc

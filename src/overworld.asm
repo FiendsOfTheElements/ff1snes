@@ -149,12 +149,12 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 
 	stz CGADD       ; start at CGRAM address 0
 	ldx #$0000
-Loop:
+@Loop:
 	lda OverworldPalette, X ; get a byte of palette data
 	sta CGDATA              ; write it to CGRAM
 	inx
 	cpx #$0080              ; length of palette data
-	bne Loop
+	bne @Loop
 
 	rts
 .endproc
@@ -237,7 +237,7 @@ Loop:
 	pla                        ; retrieve the tile
 	sta OverworldMapL, X       ; store it
 	inx                        ; bump it
-	jmp @Loop                  ; loop it
+	bra @Loop                  ; loop it
 :                              ; if we're here, we repeat the tile
 	lda #$00                   ; we need to clear
 	xba                        ; the high byte of A, so that...
@@ -257,7 +257,7 @@ Loop:
 	dey                        ; loop it
 	bne @LoopRepeat
 	ldy TempSrc                ; restore where we were reading from
-	jmp @Loop
+	bra @Loop
 .endproc
 
 .proc CopyMapRowToBuffer
@@ -505,19 +505,19 @@ Loop:
 	rep #$10                    ; X,Y 16-bit
 	lda TileMapBufferDirty
 	cmp #$01
-	bne CheckColumn
+	bne @CheckColumn
 	ldy TileMapBufferIndex
 	jsr CopyTileMapBufferRowToVRAM
-	bra Done
+	bra @Done
 
-CheckColumn:
+@CheckColumn:
 	cmp #$02
-	bne Done
+	bne @Done
 	ldx TileMapBufferIndex
 	jsr CopyTileMapBufferColumnToVRAM
 	; bra Done
 
-Done:
+@Done:
 	stz TileMapBufferDirty      ; zero the dirty flag
 	plp
 	rts
@@ -593,6 +593,7 @@ Done:
 
 	lda #$11                ; enable BG1 and sprites
 	sta TM
+	stz CGADSUB             ; disable color math
 
 	lda #$0f
 	sta INIDISP             ; release forced blanking, set screen to full brightness
@@ -604,10 +605,10 @@ Done:
 	rep #$20                ; set A to 16-bit
 	sep #$10                ; set X,Y to 8-bit
 
-CheckRButton:
+@CheckRButton:
 	lda JoyTrigger1         ; see if R was just pressed
 	and #BUTTON_R
-	beq CheckMoving
+	beq @CheckMoving
 	sep #$20                ; A briefly to 8-bit
 	lda CURR_CLASS
 	inc
@@ -615,120 +616,120 @@ CheckRButton:
 	sta CURR_CLASS
 	rep #$20                ; back to 16-bit
 
-CheckMoving:
+@CheckMoving:
 	ldx MOVEDIR             ; see if we're already moving
-	bne MoveOK
+	bne @MoveOK
 
 	; if we're not moving, we're going to see if we're pressing the A button
 	; and we're on the airship
-CheckAButton:
+@CheckAButton:
 	lda JoyPad1
 	and #BUTTON_A
-	beq CheckUpButton
+	beq @CheckUpButton
 	ldx CURR_VEHICLE
 	cpx #Vehicle_Airship    ; are we currently flying?
-	bne CheckTakeoff
+	bne @CheckTakeoff
 	jsr LandAirship         ; not anymore we're not
-	bra CheckUpButton       ; might as well try to walk as soon as we land
-CheckTakeoff:
+	bra @CheckUpButton       ; might as well try to walk as soon as we land
+@CheckTakeoff:
 	lda CHARACTER_POS
 	cmp AIRSHIP_POS         ; are we standing on the airship?
-	bne CheckUpButton
+	bne @CheckUpButton
 	jsr TakeoffAirship
 
 	; check the dpad, if any of the directional buttons are pressed,
 	; move the screen accordingly
-CheckUpButton:
+@CheckUpButton:
 	lda JoyPad1                         ; read joypad buttons pressed
 	and #BUTTON_UP
-	beq CheckDownButton
+	beq @CheckDownButton
 	ldx #DirUp
 	stx FACEDIR
-	bra Move
+	bra @Move
 
-CheckDownButton:
+@CheckDownButton:
 	lda JoyPad1
 	and #BUTTON_DOWN
-	beq CheckLeftButton
+	beq @CheckLeftButton
 	ldx #DirDown
 	stx FACEDIR
-	bra Move
+	bra @Move
 
-CheckLeftButton:
+@CheckLeftButton:
 	lda JoyPad1
 	and #BUTTON_LEFT
-	beq CheckRightButton
+	beq @CheckRightButton
 	ldx #DirLeft
 	stx FACEDIR
-	bra Move
+	bra @Move
 
-CheckRightButton:
+@CheckRightButton:
 	lda JoyPad1
 	and #BUTTON_RIGHT
-	beq Done
+	beq @Done
 	ldx #DirRight
 	stx FACEDIR
-;	bra Move
+;	bra @Move
 
-Move:
+@Move:
 	jsr GetTileMoveCoords
 	jsr CanMove
 	cmp #$0001
-	bne Done
+	bne @Done
 	jsr CalculateMovementSpeed
-MoveOK:
+@MoveOK:
 	ldx FACEDIR
 	stx MOVEDIR
 
-MoveUp:
+@MoveUp:
 	cpx #DirUp
-	bne MoveDown
+	bne @MoveDown
 	lda MAPPOSY
 	sec
 	sbc MOVE_SPEED
 	and #$0fff       ; wrap around
 	sta MAPPOSY
-	bra DoneMoving
+	bra @DoneMoving
 
-MoveDown:
+@MoveDown:
 	cpx #DirDown
-	bne MoveLeft
+	bne @MoveLeft
 	lda MAPPOSY
 	clc
 	adc MOVE_SPEED
 	and #$0fff       ; wrap around
 	sta MAPPOSY
-	bra DoneMoving
+	bra @DoneMoving
 
-MoveLeft:
+@MoveLeft:
 	cpx #DirLeft
-	bne MoveRight
+	bne @MoveRight
 	lda MAPPOSX
 	sec
 	sbc MOVE_SPEED
 	and #$0fff       ; wrap around
 	sta MAPPOSX
-	bra DoneMoving
+	bra @DoneMoving
 
-MoveRight:
+@MoveRight:
 	cpx #DirRight
-	bne Done
+	bne @Done
 	lda MAPPOSX
 	clc
 	adc MOVE_SPEED
 	and #$0fff       ; wrap around
 	sta MAPPOSX
-;	bra DoneMoving
+;	bra @DoneMoving
 
-DoneMoving:
+@DoneMoving:
 	and #$000f       ; get the count of pixels walked
 	cmp #$0008       ; offset by 8 because we're in the "center" of a tile
-	bne Done         ; if it wasn't evenly divisible by 16, we're still walking
+	bne @Done         ; if it wasn't evenly divisible by 16, we're still walking
 	ldx #$00         ; otherwise we stop walking
 	stx MOVEDIR
 	jsr LandedOnSquare
 
-Done:
+@Done:
 	rts
 .endproc
 
@@ -930,10 +931,10 @@ Done:
 
 	sep #$20                  ; set A to 8-bit
 	lda FACEDIR
-CheckUp:
+@CheckUp:
 .a8
 	cmp #DirUp
-	bne CheckDown
+	bne @CheckDown
 	rep #$20                  ; A to 16-bit
 	lda TempY
 	sec
@@ -942,12 +943,12 @@ CheckUp:
 	tay                       ; calling convention for passing the row
 	jsr DecompressMapRow
 	jsr CopyMapRowToBuffer
-	jmp CheckEvent
+	bra @CheckEvent
 
-CheckDown:
+@CheckDown:
 .a8
 	cmp #DirDown
-	bne CheckLeft
+	bne @CheckLeft
 	rep #$20                  ; A to 16-bit
 	lda TempY
 	clc
@@ -956,14 +957,14 @@ CheckDown:
 	tay                       ; calling convention for passing the row
 	jsr DecompressMapRow
 	jsr CopyMapRowToBuffer
-	jmp CheckEvent
+	bra @CheckEvent
 
 	; If we're going left or right, the map data is already loaded, we just need
 	; to copy graphics into VRAM.
-CheckLeft:
+@CheckLeft:
 .a8
 	cmp #DirLeft
-	bne CheckRight
+	bne @CheckRight
 	rep #$20                  ; A to 16-bit
 	lda TempX
 	sec
@@ -971,11 +972,11 @@ CheckLeft:
 	and #$00ff                ; wrap around
 	tax                       ; calling convention for passing the column
 	jsr CopyMapColumnToBuffer
-	jmp CheckEvent
-CheckRight:
+	bra @CheckEvent
+@CheckRight:
 .a8
 	cmp #DirRight             ; theoretically, we don't need this
-	bne CheckEvent            ; or this
+	bne @CheckEvent            ; or this
 	rep #$20                  ; A to 16-bit
 	lda TempX
 	clc
@@ -983,14 +984,14 @@ CheckRight:
 	and #$00ff                ; wrap around
 	tax                       ; calling convention for passing the column
 	jsr CopyMapColumnToBuffer
-	jmp CheckEvent
+	;bra @CheckEvent
 
-CheckEvent:                   ; Then we check to see if we triggered an event, like entering a cave or town.
-CheckVehicle:                 ; Make sure we're in the right vehicle
+@CheckEvent:                   ; Then we check to see if we triggered an event, like entering a cave or town.
+@CheckVehicle:                 ; Make sure we're in the right vehicle
 	sep #$30                  ; A,X,Y to 8-bit
 	lda CURR_VEHICLE
 	cmp #Vehicle_Airship      ; if we're in the airship, we don't need to adjust our sprite
-	beq CheckEncounter
+	beq @CheckEncounter
 	rep #$20                  ; A back to 16-bit
 	lda CHARACTER_POS         ; we want to know about the tile we landed on
 	jsr GetTileProperties
@@ -999,15 +1000,15 @@ CheckVehicle:                 ; Make sure we're in the right vehicle
 	bne @CheckOcean
 	ldy #Vehicle_Canoe
 	sty CURR_VEHICLE
-	bra CheckEncounter
+	bra @CheckEncounter
 @CheckOcean:
 	lda TempTileProp          ; are we in the ocean?
 	and #OWTP_NoShip
-	bne CheckEncounter
+	bne @CheckEncounter
 	ldy #Vehicle_Ship
 	sty CURR_VEHICLE
 
-CheckEncounter:               ; Finally, check for an enemy encounter.
+@CheckEncounter:               ; Finally, check for an enemy encounter.
 	rts
 .endproc
 

@@ -105,7 +105,7 @@
 	jsr SetOverworldCharacterObj
 	jsr SetOverworldVehicleObj
 
-	jmp GameLoop
+	bra GameLoop
 .endproc
 
 .proc   NMIHandler

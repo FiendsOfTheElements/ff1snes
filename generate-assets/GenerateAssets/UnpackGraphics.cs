@@ -498,6 +498,89 @@ public static class UnpackGraphics
 		spriteDataFile.Close();
 	}
 
+	public static void UnpackFont()
+	{
+		using var image = Image.Load<Bgra5551>("packs/ff4like/TitleScreen.png");
+		var inversePalette = GetInversePalette(image, new Rectangle(0, 0, 128, 48));
+		byte[] fontChr = new byte[0x800]; // 2 KB
+		byte[] chr;
+
+		// 0-9
+		for (int i = 0; i < 10; i++)
+		{
+			chr = ConvertBgra5551To2bpp(image, new Point(8 * i, 64), inversePalette);
+			chr.CopyTo(fontChr, 16 * i);
+		}
+		// A-Z, a-z
+		for (int i = 0; i < 52; i++)
+		{
+			int y = i / 13;
+			int x = i % 13;
+			chr = ConvertBgra5551To2bpp(image, new Point(8 * x, 8 * y), inversePalette);
+			chr.CopyTo(fontChr, 16 * i + 16 * 10);
+		}
+		// Symbols
+		for (int i = 62; i < 78; i++)
+		{
+			int y = i / 13;
+			int x = i % 13;
+			chr = ConvertBgra5551To2bpp(image, new Point(8 * x, 8 * y), inversePalette);
+			chr.CopyTo(fontChr, 16 * i);
+		}
+		// Icons
+		for (int i = 78; i < 130; i++)
+		{
+			int y = i / 13 + 42;
+			int x = i % 13;
+			chr = ConvertBgra5551To2bpp(image, new Point(8 * x, 8 * y), inversePalette);
+			chr.CopyTo(fontChr, 16 * i);
+		}
+		chr = ConvertBgra5551To2bpp(image, new Point(80, 416), inversePalette);
+		chr.CopyTo(fontChr, 16 * 130);
+		chr = ConvertBgra5551To2bpp(image, new Point(88, 416), inversePalette);
+		chr.CopyTo(fontChr, 16 * 131);
+		chr = ConvertBgra5551To2bpp(image, new Point(96, 416), inversePalette);
+		chr.CopyTo(fontChr, 16 * 132);
+
+		// Window
+		chr = ConvertBgra5551To2bpp(image, new Point(104, 0), inversePalette);
+		chr.CopyTo(fontChr, 16 * 133);
+		chr = ConvertBgra5551To2bpp(image, new Point(112, 0), inversePalette);
+		chr.CopyTo(fontChr, 16 * 134);
+		chr = ConvertBgra5551To2bpp(image, new Point(120, 0), inversePalette);
+		chr.CopyTo(fontChr, 16 * 135);
+		chr = ConvertBgra5551To2bpp(image, new Point(104, 16), inversePalette);
+		chr.CopyTo(fontChr, 16 * 136);
+		chr = ConvertBgra5551To2bpp(image, new Point(112, 16), inversePalette);
+		chr.CopyTo(fontChr, 16 * 137);
+		chr = ConvertBgra5551To2bpp(image, new Point(120, 16), inversePalette);
+		chr.CopyTo(fontChr, 16 * 138);
+		chr = ConvertBgra5551To2bpp(image, new Point(104, 8), inversePalette);
+		chr.CopyTo(fontChr, 16 * 139);
+		chr = ConvertBgra5551To2bpp(image, new Point(120, 8), inversePalette);
+		chr.CopyTo(fontChr, 16 * 140);
+
+		using var fontChrFile = File.OpenWrite("assets/graphics/font.2bpp");
+		fontChrFile.Write(fontChr);
+		fontChrFile.Close();
+
+		// Hand
+		var spriteGraphics = new byte[128];
+		inversePalette = GetInversePalette(image, new Rectangle(new Point(104, 24), new Size(16, 16)));
+		var palette = GetPalette(inversePalette, 16);
+		Rip16x16Sprite(image, new Point(104, 24), 16, inversePalette, spriteGraphics, 0);
+
+		using var handSpriteFile = File.OpenWrite("assets/graphics/hand.4bpp");
+		handSpriteFile.Write(spriteGraphics);
+		handSpriteFile.Close();
+
+		using var handPaletteFile = File.OpenWrite("assets/graphics/hand-palette.pal");
+		byte[] paletteBytes = new byte[32];
+		Buffer.BlockCopy(palette, 0, paletteBytes, 0, 32);
+		handPaletteFile.Write(paletteBytes);
+		handPaletteFile.Close();
+	}
+
 	private static void Rip16x16Sprite(Image<Bgra5551> image, Point origin, int width, Dictionary<ushort, int> inversePalette, byte[] buffer, int spriteIndex)
 	{
 		byte[] chr;

@@ -277,14 +277,45 @@ FontPalette:
 	cpx #$0008                ; length of palette data
 	bne @FontPaletteLoop
 
+	; Party Select box is from (6, 0) to (25, 5)
 	ldx #6
+	phx
+	ldx #0
 	phx
 	ldx #25
 	phx
-	ldx #1
+	ldx #5
 	phx
-	ldx #6
-	phx
+	jsr DrawWindow
+	; Character box is from (1, 7) to (13, 23)
+	lda #1                  ; this'll be fine, we only need to write one byte
+	sta 7, S
+	lda #7
+	sta 5, S
+	lda #13
+	sta 3, S
+	lda #23
+	sta 1, S
+	jsr DrawWindow
+	; Blursings box is from (15, 7) to (30, 23)
+	lda #15
+	sta 7, S
+	lda #7
+	sta 5, S
+	lda #30
+	sta 3, S
+	lda #23
+	sta 1, S
+	jsr DrawWindow
+	; Start Game box is from (19, 25) to (30, 27)
+	lda #19
+	sta 7, S
+	lda #25
+	sta 5, S
+	lda #30
+	sta 3, S
+	lda #27
+	sta 1, S
 	jsr DrawWindow
 	plx
 	plx
@@ -303,18 +334,18 @@ FontPalette:
 .proc DrawWindow
 	; Stack variables
 	x1 = $0C
-	x2 = $0A
-	y1 = $08
+	y1 = $0A
+	x2 = $08
 	y2 = $06
 	; Window characters
 	BorderTL = $c9
 	BorderT  = $cb
 	BorderTR = $bb
-	BorderL  = $cc
-	BorderR  = $b9
-	BorderBL = $c8
-	BorderB  = $ca
-	BorderBR = $bc
+	BorderL  = $ca
+	BorderR  = $bc
+	BorderBL = $cc
+	BorderB  = $b9
+	BorderBR = $c8
 
 	php
 	phd
@@ -330,27 +361,105 @@ FontPalette:
 	clc
 	adc x1                        ; we now have the word address, so
 	asl                           ; multiply by 2 to get the byte address
-	tax
+	tax                           ; put the address in X
+	lda x2
+	sec
+	sbc x1
+	pha                           ; push the tile count
+	lda #BorderTL                 ; push the top border tiles
+	pha
+	lda #BorderT
+	pha
+	lda #BorderTR
+	pha
+	jsr DrawWindowRow             ; Draw the top row
 
-	lda #BorderTL                 ; begin the top row
-	sta BG3TileMapBuffer, X
+	; Now we draw the main part of the window.  The tile count is the same, so we just
+	; have to change the tiles.  They've already been pushed onto the stack, and rather
+	; than pop them off, we can just set them with stack-relative addressing.
+	lda #BorderL
+	sta 5, S
+	lda #$20 ; space
+	sta 3, S
+	lda #BorderR
+	sta 1, S
+	ldy y1
+	iny                           ; set Y to the second row
+@RowLoop:
+	tya
+	asl
+	asl
+	asl
+	asl
+	asl
+	clc
+	adc x1
+	asl                           ; get the byte address of the beginning of the row again
+	tax
+	jsr DrawWindowRow
+	iny
+	cpy y2
+	bmi @RowLoop
+
+	lda #BorderBL                 ; Now we do the bottom row.
+	sta 5, S
+	lda #BorderB
+	sta 3, S
+	lda #BorderBR
+	sta 1, S
+	tya                           ; y should already be equal to y2
+	asl
+	asl
+	asl
+	asl
+	asl
+	clc
+	adc x1
+	asl                           ; get the byte address of the beginning of the row again
+	tax
+	jsr DrawWindowRow
+
+	; Clean up the stack!
+	pla
+	pla
+	pla
+	pla
+	pld
+	plp
+	rts
+.endproc
+
+.proc DrawWindowRow
+	TileCount  = $0B
+	LeftTile   = $09
+	MiddleTile = $07
+	RightTile  = $05
+	phd
+	tsc
+	tcd
+
+	lda LeftTile                  ; begin the row
+	and $00ff                     ; the tile index is just one byte on the stack, but two bytes in VRAM
+	sta BG3TileMapBuffer, X       ; high byte stores palette/priority/flipping, not needed for this
 	inx
 	inx                           ; 2 bytes
-	ldy x1
-	iny
-	lda #BorderT
+	phy
+	ldy #$0001
+	lda MiddleTile                ; space
+	and $00ff
 @TopLoop:
 	sta BG3TileMapBuffer, X
 	inx
 	inx                           ; 2 bytes
 	iny                           ; but the coordinate only increased by 1
-	cpy x2
+	cpy TileCount
 	bmi @TopLoop
-	lda #BorderTR
-	sta BG3TileMapBuffer, X       ; complete the top row
+	lda RightTile                 ; complete the row
+	and $00ff
+	sta BG3TileMapBuffer, X
+	ply
 
 	pld
-	plp
 	rts
 .endproc
 

@@ -72,6 +72,9 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 
 .proc LoadOverworld
 	sep #$20                ; set A to 8-bit
+	lda #GAME_MODE_OVERWORLD
+	sta GameMode
+
 	lda #$8f                ; force v-blanking
 	sta INIDISP
 	stz NMITIMEN            ; disable NMI

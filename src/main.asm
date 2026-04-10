@@ -37,6 +37,7 @@
 .import GetJoypadInputs
 
 .import LoadTitleScreenAndWaitForInput
+.import DoCharacterSelect
 
 .import LoadOverworld
 .import DoOverworldMovement
@@ -64,6 +65,10 @@
 	jsr InitializeOam
 	jsr CopyOamMirrorToOAM
 	jsr LoadTitleScreenAndWaitForInput
+
+	jsr InitializeOam
+	jsr CopyOamMirrorToOAM
+	jsr DoCharacterSelect
 
 	jsr InitializeOam
 	jsr LoadOverworld
@@ -116,10 +121,17 @@
 	lda RDNMI               ; read NMI status, acknowledge NMI
 
 	jsr CopyOamMirrorToOAM
+
+	lda GameMode
+	cmp #GAME_MODE_OVERWORLD
+	bne :+
 	jsr CopyTileMapBufferToVRAM
 	jsr SetMode7Matrix
 	jsr SetupAirshipMode7HDMA
-
+	bra :++
+:
+	jsr CopyBG3TileMapBufferToVRAM
+:
 	plp
 	rti
 .endproc
@@ -136,6 +148,26 @@
 	ldx #$220                   ; write 544 bytes
 	stx DMA7AMTL
 	stz DMA7PARAM               ; configure DMA7 for A->B, inc A address, 1 byte to 1 register
+	lda #$80                    ; enable DMA7
+	sta MDMAEN
+	rts
+.endproc
+
+.proc CopyBG3TileMapBufferToVRAM
+	stz MDMAEN                  ; reset DMA
+	lda #$80                    ; VRAM increment on write to VMDATAH
+	sta VMAINC
+	ldx #$3800
+	stx VMADDL                  ; start at VRAM address 3800
+	lda #<VMDATAL               ; write to VRAM
+	sta DMA7ADDB
+	ldx #BG3TileMapBuffer
+	stx DMA7ADDAL               ; read from the buffer
+	stz DMA7ADDAH               ; doesn't matter which bank
+	ldx #$0800                  ; write 2 KB
+	stx DMA7AMTL
+	lda #$01
+	sta DMA7PARAM               ; configure DMA0 for A->B, inc A address, 2 bytes to 2 registers (VMDATAL/H)
 	lda #$80                    ; enable DMA7
 	sta MDMAEN
 	rts

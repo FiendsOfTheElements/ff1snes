@@ -9,6 +9,7 @@
 .segment "CODE"
 
 .export LoadTitleScreenAndWaitForInput
+.export DoCharacterSelect
 
 .import GetJoypadInputs
 
@@ -16,10 +17,23 @@ TitleScreenSprites:    .incbin "graphics/title-screen-sprites.4bpp"
 TitleScreenPalette:    .incbin "graphics/title-screen-palette.pal"
 TitleScreenSpriteData: .incbin "data/title-screen-sprites.bin"
 
+FontChr:               .incbin "graphics/font.2bpp"
+HandSprite:            .incbin "graphics/hand.4bpp"
+HandPalette:           .incbin "graphics/hand-palette.pal"
+
+FontPalette:
+	COLOR  0,  0,  0 ; normally 31/0/31, but this will be the actual background
+	COLOR  0,  0, 31
+	COLOR 31, 31, 31
+	COLOR 16, 16, 16
+
 ; This sets up the video for the title screen, loads the data,
 ; and puts it on the screen, then waits for the player to press
 ; A or start.
 .proc LoadTitleScreenAndWaitForInput
+	lda #GAME_MODE_OVERWORLD ; title screen is gonna use the overworld engine
+	sta GameMode
+
 	lda #$8f                ; force v-blanking
 	sta INIDISP
 	stz NMITIMEN            ; disable NMI
@@ -137,5 +151,219 @@ TitleScreenSpriteData: .incbin "data/title-screen-sprites.bin"
 	cpx #$0220                    ; length of sprite data (same as OAM size)
 	bne @SpriteDataLoop
 
+	rts
+.endproc
+
+.proc DoCharacterSelect
+	jsr InitializeCharacterSelect
+
+@InputLoop:
+	wai
+	jsr GetJoypadInputs
+	lda JoyTrigger1
+	and #(BUTTON_A | BUTTON_START)
+	beq @InputLoop
+
+	rts
+.endproc
+
+.proc InitializeCharacterSelect
+; Dungeon Map VRAM mapping
+; 16 KB BG1 CHR       0x0000 word address
+; 8 KB BG2 CHR        0x2000 word address
+; 4 KB BG3 CHR        0x3000 word address
+; 2 KB BG3 tilemap    0x3800 word address
+; 8 KB BG1 tilemap    0x4000 word address
+; 8 KB BG2 tilemap    0x5000 word address
+; 16 KB sprites       0x6000 word address
+
+; BG12NBA = $20
+; BG34NBA = $03
+; BG1SC   = $43
+; BG2SC   = $53
+; BG3SC   = $38
+
+	sep #$20                ; A to 8-bit
+	lda #GAME_MODE_DUNGEON  ; character select uses mode 1, like the subscreen or a town shop
+	sta GameMode
+
+	lda #$8f                ; force v-blanking
+	sta INIDISP
+	stz NMITIMEN            ; disable NMI
+
+	lda #$31                ; video mode 1, large character size for BG1 and BG2
+	sta BGMODE
+	lda #$20                ; see above VRAM mapping for details of these registers
+	sta BG12NBA
+	lda #$03
+	sta BG34NBA
+	lda #$43
+	sta BG1SC
+	lda #$53
+	sta BG2SC
+	lda #$38
+	sta BG3SC
+	lda #$14                ; enable sprites and BG3
+	sta TM
+	lda #$00                ; no background layers on subscreen
+	sta TS
+
+	; We're going to clear out BG1, BG2, and BG3.
+	lda #$80                      ; VRAM increment on write to VMDATAH
+	sta VMAINC
+	rep #$30                      ; A,X,Y to 16-bit
+
+	lda #$4000                    ; BG1 tilemap
+	ldx #$1000                    ; BG1 tilemap size
+	jsr ZeroVRAM                  ; blank it out
+	lda #$5000                    ; BG2 tilemap
+	ldx #$1000                    ; BG2 tilemap size
+	jsr ZeroVRAM                  ; blank it out
+	stz VMADDL                    ; BG1 CHR
+	lda #$ffff                    ; we want to write color f (black) to enough CHR data to give us a black background
+	ldx #$0020                    ; 32 words will write two 8x8 characters
+@BlackLoop1:
+	sta VMDATAL
+	dex
+	bne @BlackLoop1
+
+	lda #$0100                    ; second row of BG1 CHR
+	sta VMADDL
+	lda #$ffff                    ; we want to write color f (black) to enough CHR data to give us a black background
+	ldx #$0020                    ; 32 words will write two 8x8 characters
+@BlackLoop2:
+	sta VMDATAL
+	dex
+	bne @BlackLoop2
+
+	; Zero out the BG3 tilemap buffer and copy it to VRAM.
+	lda #$0001
+	sta BG3TileMapBufferDirty     ; 2-byte write to a 1-byte variable, but the second byte will get overwritten immediately
+	ldx #$0000
+@BG3Loop:
+	stz BG3TileMapBuffer, X
+	inx
+	inx
+	cpx #$0800
+	bne @BG3Loop
+
+	; Load the font graphics.
+	sep #$20                      ; A to 8-bit
+	rep #$10                      ; X,Y to 16-bit
+	stz MDMAEN                    ; reset DMA
+	lda #$80                      ; VRAM increment on write to VMDATAH
+	sta VMAINC
+	ldx #$3000
+	stx VMADDL                    ; start at VRAM address $3000
+	lda #<VMDATAL                 ; write to VRAM low register
+	sta DMA0ADDB
+	ldx #FontChr
+	stx DMA0ADDAL                 ; read from title screen sprite graphics
+	lda #BANK_MAIN                ; which is in this bank
+	sta DMA0ADDAH
+	ldx #$1000                    ; write 4 KB
+	stx DMA0AMTL
+	lda #$01
+	sta DMA0PARAM                 ; configure DMA0 for A->B, inc A address, 2 bytes to 2 registers (VMDATAL/H)
+	sta MDMAEN                    ; enable
+
+	; Now load the palettes.
+	stz CGADD                 ; start at CGRAM address $80
+	ldx #$0000
+@FontPaletteLoop:
+	lda FontPalette, X        ; get a byte of palette data
+	sta CGDATA                ; write it to CGRAM
+	inx
+	cpx #$0008                ; length of palette data
+	bne @FontPaletteLoop
+
+	ldx #6
+	phx
+	ldx #25
+	phx
+	ldx #1
+	phx
+	ldx #6
+	phx
+	jsr DrawWindow
+	plx
+	plx
+	plx
+	plx
+
+	lda #$0f
+	sta INIDISP             ; release forced blanking, set screen to full brightness
+	lda #$81
+	sta NMITIMEN            ; enable NMI, turn on automatic joypad polling
+	rts
+.endproc
+
+; Draws a box on the screen, from x1 to x2, y1 to y2, where the arguments are passed
+; on the stack in that order.
+.proc DrawWindow
+	; Stack variables
+	x1 = $0C
+	x2 = $0A
+	y1 = $08
+	y2 = $06
+	; Window characters
+	BorderTL = $c9
+	BorderT  = $cb
+	BorderTR = $bb
+	BorderL  = $cc
+	BorderR  = $b9
+	BorderBL = $c8
+	BorderB  = $ca
+	BorderBR = $bc
+
+	php
+	phd
+	tsc
+	tcd
+	rep #$30                      ; set A,X,Y to 16-bit
+	lda y1                        ; calculate offset into BG3 tilemap
+	asl
+	asl
+	asl
+	asl
+	asl                           ; multiply Y by 32
+	clc
+	adc x1                        ; we now have the word address, so
+	asl                           ; multiply by 2 to get the byte address
+	tax
+
+	lda #BorderTL                 ; begin the top row
+	sta BG3TileMapBuffer, X
+	inx
+	inx                           ; 2 bytes
+	ldy x1
+	iny
+	lda #BorderT
+@TopLoop:
+	sta BG3TileMapBuffer, X
+	inx
+	inx                           ; 2 bytes
+	iny                           ; but the coordinate only increased by 1
+	cpy x2
+	bmi @TopLoop
+	lda #BorderTR
+	sta BG3TileMapBuffer, X       ; complete the top row
+
+	pld
+	plp
+	rts
+.endproc
+
+.proc DrawText
+.endproc
+
+; Zeroes out VRAM starting from a word address given in the A register and a word count
+; given in the X register.  A,X,Y assumed to be 16-bit.
+.proc ZeroVRAM
+	sta VMADDL
+@Loop:
+	stz VMDATAL
+	dex
+	bne @Loop
 	rts
 .endproc

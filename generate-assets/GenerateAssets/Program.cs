@@ -8,3 +8,5 @@ RipOverworld.RipOverworldSprites();
 UnpackGraphics.UnpackCharacterSprites();
 UnpackGraphics.UnpackOverworldGraphics();
 UnpackGraphics.UnpackTitleScreen();
+
+UnpackGraphics.UnpackFont();

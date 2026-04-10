@@ -207,6 +207,7 @@ FontPalette:
 	sta TM
 	lda #$00                ; no background layers on subscreen
 	sta TS
+	stz HDMAEN              ; turn off any HDMA
 
 	; We're going to clear out BG1, BG2, and BG3.
 	lda #$80                      ; VRAM increment on write to VMDATAH

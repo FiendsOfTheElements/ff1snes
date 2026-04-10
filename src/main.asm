@@ -167,7 +167,7 @@
 	ldx #$0800                  ; write 2 KB
 	stx DMA7AMTL
 	lda #$01
-	sta DMA7PARAM               ; configure DMA0 for A->B, inc A address, 2 bytes to 2 registers (VMDATAL/H)
+	sta DMA7PARAM               ; configure DMA7 for A->B, inc A address, 2 bytes to 2 registers (VMDATAL/H)
 	lda #$80                    ; enable DMA7
 	sta MDMAEN
 	rts

@@ -209,33 +209,10 @@ FontPalette:
 	sta TS
 	stz HDMAEN              ; turn off any HDMA
 
-	; We're going to clear out BG1, BG2, and BG3.
+	; We're going to clear out BG3.
 	lda #$80                      ; VRAM increment on write to VMDATAH
 	sta VMAINC
 	rep #$30                      ; A,X,Y to 16-bit
-
-	lda #$4000                    ; BG1 tilemap
-	ldx #$1000                    ; BG1 tilemap size
-	jsr ZeroVRAM                  ; blank it out
-	lda #$5000                    ; BG2 tilemap
-	ldx #$1000                    ; BG2 tilemap size
-	jsr ZeroVRAM                  ; blank it out
-	stz VMADDL                    ; BG1 CHR
-	lda #$ffff                    ; we want to write color f (black) to enough CHR data to give us a black background
-	ldx #$0020                    ; 32 words will write two 8x8 characters
-@BlackLoop1:
-	sta VMDATAL
-	dex
-	bne @BlackLoop1
-
-	lda #$0100                    ; second row of BG1 CHR
-	sta VMADDL
-	lda #$ffff                    ; we want to write color f (black) to enough CHR data to give us a black background
-	ldx #$0020                    ; 32 words will write two 8x8 characters
-@BlackLoop2:
-	sta VMDATAL
-	dex
-	bne @BlackLoop2
 
 	; Zero out the BG3 tilemap buffer and copy it to VRAM.
 	lda #$0001
@@ -279,46 +256,65 @@ FontPalette:
 	bne @FontPaletteLoop
 
 	; Party Select box is from (6, 0) to (25, 5)
-	ldx #6
-	phx
-	ldx #0
-	phx
-	ldx #25
-	phx
-	ldx #5
-	phx
-	jsr DrawWindow
-	; Character box is from (1, 7) to (13, 23)
-	lda #1                  ; this'll be fine, we only need to write one byte
-	sta 7, S
-	lda #7
-	sta 5, S
-	lda #13
-	sta 3, S
-	lda #23
-	sta 1, S
-	jsr DrawWindow
-	; Blursings box is from (15, 7) to (30, 23)
-	lda #15
-	sta 7, S
-	lda #7
-	sta 5, S
-	lda #30
-	sta 3, S
-	lda #23
-	sta 1, S
-	jsr DrawWindow
-	; Start Game box is from (19, 25) to (30, 27)
-	lda #19
-	sta 7, S
-	lda #25
-	sta 5, S
-	lda #30
-	sta 3, S
-	lda #27
-	sta 1, S
+	pea 6
+	pea 0
+	pea 25
+	pea 5
 	jsr DrawWindow
 	plx
+	plx
+	plx
+	plx
+	; Character box is from (1, 7) to (13, 23)
+	pea 1
+	pea 7
+	pea 13
+	pea 23
+	jsr DrawWindow
+	plx
+	plx
+	plx
+	plx
+	; Blursings box is from (15, 7) to (30, 23)
+	pea 15
+	pea 7
+	pea 30
+	pea 23
+	jsr DrawWindow
+	plx
+	plx
+	plx
+	plx
+	; Start Game box is from (19, 25) to (30, 27)
+	pea 19
+	pea 25
+	pea 30
+	pea 27
+	jsr DrawWindow
+	plx
+	plx
+	plx
+	plx
+
+	; Draw some text.
+	pea PartySelectString
+	pea 8
+	pea 0
+	jsr DrawText
+	plx
+	plx
+	plx
+	pea StatusString
+	pea 19
+	pea 7
+	jsr DrawText
+	plx
+	plx
+	plx
+	pea StartGameString
+	pea 20
+	pea 26
+	jsr DrawText
 	plx
 	plx
 	plx
@@ -334,10 +330,10 @@ FontPalette:
 ; on the stack in that order.
 .proc DrawWindow
 	; Stack variables
-	x1 = $0C
-	y1 = $0A
-	x2 = $08
-	y2 = $06
+	x1 = $0B
+	y1 = $09
+	x2 = $07
+	y2 = $05
 	; Window characters
 	BorderTL = $c9
 	BorderT  = $cb
@@ -348,10 +344,10 @@ FontPalette:
 	BorderB  = $b9
 	BorderBR = $c8
 
-	php
 	phd
 	tsc
 	tcd
+	php
 	rep #$30                      ; set A,X,Y to 16-bit
 	lda y1                        ; calculate offset into BG3 tilemap
 	asl
@@ -425,10 +421,14 @@ FontPalette:
 	pla
 	pla
 	pla
-	pld
 	plp
+	pld
 	rts
 .endproc
+
+PartySelectString: .asciiz " PARTY  SELECT "
+StatusString:      .asciiz " STATUS "
+StartGameString:   .asciiz "START GAME"
 
 .proc DrawWindowRow
 	TileCount  = $0B
@@ -465,6 +465,41 @@ FontPalette:
 .endproc
 
 .proc DrawText
+	pText  = $09
+	xCoord = $07
+	yCoord = $05
+	phd
+	tsc
+	tcd
+	php
+	rep #$20                ; A to 16-bit
+
+	lda yCoord              ; formula is 2 * (y*32 + x), 2 bytes per tile, 32 tiles across
+	asl
+	asl
+	asl
+	asl
+	asl
+	clc
+	adc xCoord
+	asl
+	tax
+
+	ldy #$0000
+@Loop:
+	lda (pText), Y          ; fetch a character
+	and #$00ff              ; we just want one byte of text at a time
+	beq @Done               ; null-terminated string
+	sta BG3TileMapBuffer, X ; we have to store two bytes for the tile
+	iny                     ; next character
+	inx                     ; and next tile location
+	inx
+	bra @Loop
+
+@Done:
+	plp
+	pld
+	rts
 .endproc
 
 ; Zeroes out VRAM starting from a word address given in the A register and a word count

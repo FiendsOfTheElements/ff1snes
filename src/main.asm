@@ -47,6 +47,8 @@
 .import SetMode7Matrix
 .import SetupAirshipMode7HDMA
 
+.export DMA2VRAML : far
+
 .include "registers.inc"
 .include "defines.inc"
 
@@ -154,21 +156,57 @@
 .endproc
 
 .proc CopyBG3TileMapBufferToVRAM
-	stz MDMAEN                  ; reset DMA
-	lda #$80                    ; VRAM increment on write to VMDATAH
-	sta VMAINC
-	ldx #$3800
-	stx VMADDL                  ; start at VRAM address 3800
-	lda #<VMDATAL               ; write to VRAM
-	sta DMA7ADDB
-	ldx #BG3TileMapBuffer
-	stx DMA7ADDAL               ; read from the buffer
-	stz DMA7ADDAH               ; doesn't matter which bank
-	ldx #$0800                  ; write 2 KB
-	stx DMA7AMTL
-	lda #$01
-	sta DMA7PARAM               ; configure DMA7 for A->B, inc A address, 2 bytes to 2 registers (VMDATAL/H)
-	lda #$80                    ; enable DMA7
-	sta MDMAEN
+	php
+	rep #$10             ; set X,Y to 16-bit
+	pea 0                ; bank (doesn't matter, the buffer is in low WRAM)
+	pea BG3TileMapBuffer ; source
+	pea $3800            ; dest
+	pea $0800            ; size
+	jsl DMA2VRAML
+	plx
+	plx
+	plx
+	plx
+	plp
 	rts
+.endproc
+
+.proc DMA2VRAML
+; Copies data to VRAM, arguments on the stack.  This is the "normal" way
+; to write to VRAM, doing a linear bulk copy.  Works for character graphics,
+; tilemaps, and sprite graphics, but not for Mode 7 graphics or tilemaps.
+	Bank   = $0C        ; Source bank (value only needs to be one byte)
+	Source = $0A        ; Source address from memory
+	Dest   = $08        ; Destination word address in VRAM
+	Size   = $06        ; Size of data to transfer (bytes)
+
+	phd
+	tsc
+	tcd
+	php
+	sep #$20            ; set A to 8-bit
+	rep #$10            ; set X,Y to 16-bit
+
+	lda #$80            ; VRAM increment on write to VMDATAH
+	sta VMAINC
+	lda #<VMDATAL       ; write to VRAM
+	sta DMA7ADDB
+	lda #$01            ; configuration A->B, inc A address, write 2 bytes at a time to VMDATAL/H
+	sta DMA7PARAM
+
+	lda Bank
+	sta DMA7ADDAH
+	ldx Source
+	stx DMA7ADDAL
+	ldx Dest
+	stx VMADDL          ; destination address
+	ldx Size
+	stx DMA7AMTL
+
+	lda #$80            ; enable DMA7
+	sta MDMAEN
+
+	plp
+	pld
+	rtl
 .endproc

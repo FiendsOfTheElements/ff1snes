@@ -12,6 +12,7 @@
 .export DoCharacterSelect
 
 .import GetJoypadInputs
+.import DMA2VRAML : far
 
 TitleScreenSprites:    .incbin "graphics/title-screen-sprites.4bpp"
 TitleScreenPalette:    .incbin "graphics/title-screen-palette.pal"
@@ -112,22 +113,15 @@ FontPalette:
 	; First load the sprite graphics.
 	sep #$20                      ; A to 8-bit
 	rep #$10                      ; X,Y to 16-bit
-	stz MDMAEN                    ; reset DMA
-	lda #$80                      ; VRAM increment on write to VMDATAH
-	sta VMAINC
-	ldx #$4000
-	stx VMADDL                    ; start at VRAM address $4000
-	lda #<VMDATAL                 ; write to VRAM low register
-	sta DMA0ADDB
-	ldx #TitleScreenSprites
-	stx DMA0ADDAL                 ; read from title screen sprite graphics
-	lda #BANK_MAIN                ; which is in this bank
-	sta DMA0ADDAH
-	ldx #$2800                    ; write 10 KB
-	stx DMA0AMTL
-	lda #$01
-	sta DMA0PARAM                 ; configure DMA0 for A->B, inc A address, 2 bytes to 2 registers (VMDATAL/H)
-	sta MDMAEN                    ; enable
+	pea BANK_MAIN
+	pea TitleScreenSprites
+	pea $4000
+	pea $2800
+	jsl DMA2VRAML
+	plx
+	plx
+	plx
+	plx
 
 	; Now load the palette.
 	lda #$80
@@ -227,23 +221,15 @@ FontPalette:
 
 	; Load the font graphics.
 	sep #$20                      ; A to 8-bit
-	rep #$10                      ; X,Y to 16-bit
-	stz MDMAEN                    ; reset DMA
-	lda #$80                      ; VRAM increment on write to VMDATAH
-	sta VMAINC
-	ldx #$3000
-	stx VMADDL                    ; start at VRAM address $3000
-	lda #<VMDATAL                 ; write to VRAM low register
-	sta DMA0ADDB
-	ldx #FontChr
-	stx DMA0ADDAL                 ; read from title screen sprite graphics
-	lda #BANK_MAIN                ; which is in this bank
-	sta DMA0ADDAH
-	ldx #$1000                    ; write 4 KB
-	stx DMA0AMTL
-	lda #$01
-	sta DMA0PARAM                 ; configure DMA0 for A->B, inc A address, 2 bytes to 2 registers (VMDATAL/H)
-	sta MDMAEN                    ; enable
+	pea BANK_MAIN
+	pea FontChr
+	pea $3000
+	pea $1000
+	jsl DMA2VRAML
+	plx
+	plx
+	plx
+	plx
 
 	; Now load the palettes.
 	stz CGADD                 ; start at CGRAM address $80

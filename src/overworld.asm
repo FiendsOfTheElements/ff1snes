@@ -17,6 +17,7 @@
 .import Sine
 .import Cosine
 
+.import DMA2VRAML : far
 .import AirshipMode7Tables : far
 
 .segment "OVERWORLD"
@@ -530,24 +531,16 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	; There are a 12 character classes and 3 vehicles, each with 6 frames of animation.
 	; Each of these is a 16x16 sprite taking up 128 bytes.  All told, 12 KB of data
 	; (with room at the end for one more set of 6).
-	sep #$20                      ; A to 8-bit
 	rep #$10                      ; X,Y to 16-bit
-	stz MDMAEN                    ; reset DMA
-	lda #$80                      ; VRAM increment on write to VMDATAH
-	sta VMAINC
-	ldx #$4000
-	stx VMADDL                    ; start at VRAM address $4000
-	lda #<VMDATAL                 ; write to VRAM low register
-	sta DMA0ADDB
-	ldx #OverworldSprites & $ffff ; OverworldSprites address is long
-	stx DMA0ADDAL                 ; read from overworld sprite data
-	lda #BANK_OWSPRITE            ; which is in this bank
-	sta DMA0ADDAH
-	ldx #$4000                    ; write 16 KB (128 bytes * 8 frames * 16 classes/vehicles)
-	stx DMA0AMTL
-	lda #$01
-	sta DMA0PARAM                 ; configure DMA0 for A->B, inc A address, 2 bytes to 2 registers (VMDATAL/H)
-	sta MDMAEN                    ; enable
+	pea BANK_OWSPRITE
+	pea OverworldSprites & $ffff
+	pea $6000
+	pea $4000
+	jsl DMA2VRAML
+	plx
+	plx
+	plx
+	plx
 	rts
 .endproc
 
@@ -591,7 +584,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	stz M7SEL               ; wrap tiles, no flipping
 	jsr SetMode7Matrix      ; set up Mode 7 transform parameters
 
-	lda #$62                ; sprites are 16x16 and 32x32, sprite RAM is at $8000 (but word address $4000)
+	lda #$63                ; sprites are 16x16 and 32x32, sprite RAM is at $C000 (but word address $6000)
 	sta OBJSEL
 
 	lda #$11                ; enable BG1 and sprites

@@ -21,9 +21,9 @@
 .import AirshipMode7Tables : far
 
 .segment "OVERWORLD"
+CompressedOverworld: .incbin "data/overworld-map.bin"            ; ~16 KB, varies with compression
+.segment "OWGRAPHICS"
 OverworldChr:        .incbin "graphics/overworld-chr.m7"         ; 16 KB
-CompressedOverworld: .incbin "data/overworld-map.bin"            ; 16 KB, filling out the entire bank
-.segment "OWSPRITE"
 OverworldSprites:    .incbin "graphics/overworld-sprites.4bpp"   ; 16 KB
 
 .segment "CODE"
@@ -132,7 +132,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	sta DMA0ADDB
 	ldx #OverworldChr & $ffff   ; the OverworldChr address is long, so we mask it
 	stx DMA0ADDAL               ; read from overworld CHR data
-	lda #BANK_OVERWORLD         ; which is in this bank
+	lda #BANK_OWGRAPHICS        ; which is in this bank
 	sta DMA0ADDAH
 	ldx #$4000                  ; write 16 KB (64 bytes * 256 characters)
 	stx DMA0AMTL
@@ -532,15 +532,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	; Each of these is a 16x16 sprite taking up 128 bytes.  All told, 12 KB of data
 	; (with room at the end for one more set of 6).
 	rep #$10                      ; X,Y to 16-bit
-	pea BANK_OWSPRITE
-	pea OverworldSprites & $ffff
-	pea $6000
-	pea $4000
-	jsl DMA2VRAML
-	plx
-	plx
-	plx
-	plx
+	LONGCALL DMA2VRAML, BANK_OWGRAPHICS, OverworldSprites & $ffff, $6000, $4000
 	rts
 .endproc
 

@@ -5,8 +5,9 @@ RipOverworld.RipOverworldMap();
 RipOverworld.RipOverworldTileProperties();
 RipOverworld.RipOverworldSprites();
 
-UnpackGraphics.UnpackCharacterSprites();
+UnpackGraphics.UnpackOverworldCharacterSprites();
 UnpackGraphics.UnpackOverworldGraphics();
-UnpackGraphics.UnpackTitleScreen();
 
+UnpackGraphics.UnpackTitleScreen();
 UnpackGraphics.UnpackFont();
+UnpackGraphics.UnpackBattleCharacterSprites();

@@ -6,21 +6,30 @@
 .include "registers.inc"
 .include "joypad.inc"
 
-.segment "CODE"
-
 .export LoadTitleScreenAndWaitForInput
 .export DoCharacterSelect
 
 .import GetJoypadInputs
+.import CopyBG3TileMapBufferToVRAM
 .import DMA2VRAML : far
 
-TitleScreenSprites:    .incbin "graphics/title-screen-sprites.4bpp"
-TitleScreenPalette:    .incbin "graphics/title-screen-palette.pal"
-TitleScreenSpriteData: .incbin "data/title-screen-sprites.bin"
+.segment "TITLEGRAPHICS"
 
-FontChr:               .incbin "graphics/font.2bpp"
-HandSprite:            .incbin "graphics/hand.4bpp"
+TitleScreenSprites:    .incbin "graphics/title-screen-sprites.4bpp"  ; 16 KB
+FontChr:               .incbin "graphics/font.2bpp"                  ; 4 KB
+HandSprite:            .incbin "graphics/hand.4bpp"                  ; 128 bytes
+
+.segment "BATTLEGRAPHICS"
+
+BattleSprites:         .incbin "graphics/battle-sprites.4bpp"        ; 24 KB
+
+.segment "CODE"
+
+; Palettes and sprite data are stored with the code so they don't have to be long copies to CGRAM/OAM.
+TitleScreenSpriteData: .incbin "data/title-screen-sprites.bin"
+TitleScreenPalette:    .incbin "graphics/title-screen-palette.pal"
 HandPalette:           .incbin "graphics/hand-palette.pal"
+BattleSpritePalettes:  .incbin "graphics/battle-sprite-palettes.pal"
 
 FontPalette:
 	COLOR  0,  0,  0 ; normally 31/0/31, but this will be the actual background
@@ -48,7 +57,7 @@ FontPalette:
 	stz M7SEL               ; wrap tiles, no flipping
 	;jsr SetMode7Matrix      ; set up Mode 7 transform parameters
 
-	lda #$62                ; sprites are 16x16 and 32x32, sprite RAM is at $8000 (but word address $4000)
+	lda #$63                ; sprites are 16x16 and 32x32, sprite RAM is at $C000 (but word address $6000)
 	sta OBJSEL
 
 	lda #$11                ; enable sprites and BG1
@@ -113,15 +122,8 @@ FontPalette:
 	; First load the sprite graphics.
 	sep #$20                      ; A to 8-bit
 	rep #$10                      ; X,Y to 16-bit
-	pea BANK_MAIN
-	pea TitleScreenSprites
-	pea $4000
-	pea $2800
-	jsl DMA2VRAML
-	plx
-	plx
-	plx
-	plx
+
+	LONGCALL DMA2VRAML, BANK_TITLEGRAPHICS, TitleScreenSprites, $6000, $2800
 
 	; Now load the palette.
 	lda #$80
@@ -220,19 +222,10 @@ FontPalette:
 	bne @BG3Loop
 
 	; Load the font graphics.
-	sep #$20                      ; A to 8-bit
-	pea BANK_MAIN
-	pea FontChr
-	pea $3000
-	pea $1000
-	jsl DMA2VRAML
-	plx
-	plx
-	plx
-	plx
+	LONGCALL DMA2VRAML, BANK_TITLEGRAPHICS, FontChr, $3000, $1000
 
-	; Now load the palettes.
-	stz CGADD                 ; start at CGRAM address $80
+	sep #$20                  ; A to 8-bit
+	stz CGADD                 ; start at CGRAM address $00
 	ldx #$0000
 @FontPaletteLoop:
 	lda FontPalette, X        ; get a byte of palette data
@@ -241,69 +234,30 @@ FontPalette:
 	cpx #$0008                ; length of palette data
 	bne @FontPaletteLoop
 
-	; Party Select box is from (6, 0) to (25, 5)
-	pea 6
-	pea 0
-	pea 25
-	pea 5
-	jsr DrawWindow
-	plx
-	plx
-	plx
-	plx
-	; Character box is from (1, 7) to (13, 23)
-	pea 1
-	pea 7
-	pea 13
-	pea 23
-	jsr DrawWindow
-	plx
-	plx
-	plx
-	plx
-	; Blursings box is from (15, 7) to (30, 23)
-	pea 15
-	pea 7
-	pea 30
-	pea 23
-	jsr DrawWindow
-	plx
-	plx
-	plx
-	plx
-	; Start Game box is from (19, 25) to (30, 27)
-	pea 19
-	pea 25
-	pea 30
-	pea 27
-	jsr DrawWindow
-	plx
-	plx
-	plx
-	plx
+	; Load the sprites.
+	LONGCALL DMA2VRAML, BANK_BATTLESPRITES, BattleSprites, $6000, $3000
 
-	; Draw some text.
-	pea PartySelectString
-	pea 8
-	pea 0
-	jsr DrawText
-	plx
-	plx
-	plx
-	pea StatusString
-	pea 19
-	pea 7
-	jsr DrawText
-	plx
-	plx
-	plx
-	pea StartGameString
-	pea 20
-	pea 26
-	jsr DrawText
-	plx
-	plx
-	plx
+	sep #$20                  ; A to 8-bit
+	lda #$80
+	sta CGADD                 ; start at CGRAM address $80
+	ldx #$0000
+@BattleSpritePaletteLoop:
+	lda BattleSpritePalettes, X ; get a byte of palette data
+	sta CGDATA                ; write it to CGRAM
+	inx
+	cpx #$00C0                ; length of palette data
+	bne @BattleSpritePaletteLoop
+
+	CALL DrawWindow,  6,  0, 25,  5
+	CALL DrawWindow,  1,  7, 13, 23
+	CALL DrawWindow, 15,  7, 30, 23
+	CALL DrawWindow, 19, 25, 30, 27
+
+	CALL DrawText, PartySelectString, 8, 0
+	CALL DrawText, StatusString, 19, 7
+	CALL DrawText, StartGameString, 20, 26
+
+	jsr CopyBG3TileMapBufferToVRAM
 
 	lda #$0f
 	sta INIDISP             ; release forced blanking, set screen to full brightness
@@ -329,6 +283,7 @@ FontPalette:
 	BorderBL = $cc
 	BorderB  = $b9
 	BorderBR = $c8
+	Space    = $20
 
 	phd
 	tsc
@@ -349,23 +304,20 @@ FontPalette:
 	sec
 	sbc x1
 	pha                           ; push the tile count
-	lda #BorderTL                 ; push the top border tiles
-	pha
-	lda #BorderT
-	pha
-	lda #BorderTR
-	pha
+	pea BorderTL                 ; push the top border tiles
+	pea BorderT
+	pea BorderTR
 	jsr DrawWindowRow             ; Draw the top row
+	plx
+	plx
+	plx
 
 	; Now we draw the main part of the window.  The tile count is the same, so we just
 	; have to change the tiles.  They've already been pushed onto the stack, and rather
 	; than pop them off, we can just set them with stack-relative addressing.
-	lda #BorderL
-	sta 5, S
-	lda #$20 ; space
-	sta 3, S
-	lda #BorderR
-	sta 1, S
+	pea BorderL
+	pea Space
+	pea BorderR
 	ldy y1
 	iny                           ; set Y to the second row
 @RowLoop:
@@ -384,12 +336,12 @@ FontPalette:
 	cpy y2
 	bmi @RowLoop
 
-	lda #BorderBL                 ; Now we do the bottom row.
-	sta 5, S
-	lda #BorderB
-	sta 3, S
-	lda #BorderBR
-	sta 1, S
+	plx
+	plx
+	plx
+	pea BorderBL                 ; Now we do the bottom row.
+	pea BorderB
+	pea BorderBR
 	tya                           ; y should already be equal to y2
 	asl
 	asl

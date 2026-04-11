@@ -6,10 +6,32 @@
     .word (b << 10) + (g << 5) + r
 .endmacro
 
-BANK_MAIN      = $00
-BANK_AIRSHIPM7 = $01
-BANK_OVERWORLD = $02
-BANK_OWSPRITE  = $03
+.macro CALL func, p1, p2, p3, p4, p5, p6, p7, p8
+	pea p1
+.ifnblank p2
+	CALL func, p2, p3, p4, p5, p6, p7, p8
+.else
+	jsr func
+.endif
+	plx
+.endmacro
+
+.macro LONGCALL func, p1, p2, p3, p4, p5, p6, p7, p8
+	pea p1
+.ifnblank p2
+	LONGCALL func, p2, p3, p4, p5, p6, p7, p8
+.else
+	jsl func
+.endif
+	plx
+.endmacro
+
+BANK_MAIN          = $00
+BANK_AIRSHIPM7     = $01
+BANK_OVERWORLD     = $02
+BANK_OWGRAPHICS    = $03
+BANK_TITLEGRAPHICS = $04
+BANK_BATTLESPRITES = $05
 
 ; WRAM locations CAN overlap, but only if the bits of code using the overlap are okay with it!
 

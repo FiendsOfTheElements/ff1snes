@@ -7,7 +7,7 @@ using static ImageRipper;
 
 public static class UnpackGraphics
 {
-	public static void UnpackCharacterSprites()
+	public static void UnpackOverworldCharacterSprites()
 	{
 		using var image = Image.Load<Bgra5551>("packs/ff4like/CharacterSprites.png");
 		byte[] sprites = new byte[0x4000]; // half a bank full of sprites
@@ -377,112 +377,6 @@ public static class UnpackGraphics
 		WriteSpriteData(spriteData, 18, new Point(195, 107), 264, isLarge: true);
 		WriteSpriteData(spriteData, 19, new Point(227, 107), 268, isLarge: true);
 
-		/* This was the old way where I tried to be more memory efficient.  Unfortunately, the bottom row
-		 * of lettering contains too many sprites, and it cuts off the bottom of the F and the I.
-		Rip16x16Sprite(image, new Point(2, 56), 15, inversePalette, spriteGraphics, 0); // Top of F
-		Rip16x16Sprite(image, new Point(2, 72), 15, inversePalette, spriteGraphics, 1); // Middle of F
-		Rip16x16Sprite(image, new Point(2, 88), 15, inversePalette, spriteGraphics, 2); // Bottom of F (or I/T/Y)
-
-		Rip16x16Sprite(image, new Point(18, 56), 10, inversePalette, spriteGraphics, 3); // Top of I (or L)
-		Rip16x16Sprite(image, new Point(18, 72), 10, inversePalette, spriteGraphics, 4); // Middle of I (or T)
-
-		Rip16x16Sprite(image, new Point(29, 56), 16, inversePalette, spriteGraphics, 5); // Top of N
-		Rip16x16Sprite(image, new Point(45, 56), 2, inversePalette, spriteGraphics, 6); // Top-right of N
-		Rip16x16Sprite(image, new Point(29, 72), 16, inversePalette, spriteGraphics, 7); // Middle of N
-		Rip16x16Sprite(image, new Point(29, 88), 16, inversePalette, spriteGraphics, 8); // Bottom of N
-		Rip16x16Sprite(image, new Point(45, 88), 2, inversePalette, spriteGraphics, 9); // Bottom-right of N
-
-		Rip16x16Sprite(image, new Point(49, 56), 16, inversePalette, spriteGraphics, 10); // Top of A
-		Rip16x16Sprite(image, new Point(49, 72), 16, inversePalette, spriteGraphics, 11); // Middle of A
-		Rip16x16Sprite(image, new Point(49, 88), 16, inversePalette, spriteGraphics, 12); // Bottom of A
-		Rip16x16Sprite(image, new Point(65, 88), 3, inversePalette, spriteGraphics, 13); // Bottom-right of A
-
-		Rip16x16Sprite(image, new Point(68, 72), 15, inversePalette, spriteGraphics, 14); // Middle of L
-		Rip16x16Sprite(image, new Point(68, 88), 15, inversePalette, spriteGraphics, 15); // Bottom of L
-
-		Rip16x16Sprite(image, new Point(186, 56), 14, inversePalette, spriteGraphics, 16); // Top of T
-
-		Rip16x16Sprite(image, new Point(221, 56), 13, inversePalette, spriteGraphics, 17); // Top of S
-		Rip16x16Sprite(image, new Point(221, 72), 13, inversePalette, spriteGraphics, 18); // Middle of S
-		Rip16x16Sprite(image, new Point(221, 88), 13, inversePalette, spriteGraphics, 19); // Bottom of S
-
-		Rip16x16Sprite(image, new Point(235, 56), 16, inversePalette, spriteGraphics, 20); // Top of Y
-		Rip16x16Sprite(image, new Point(251, 56), 3, inversePalette, spriteGraphics, 21); // Top-right of Y
-		Rip16x16Sprite(image, new Point(235, 72), 16,inversePalette, spriteGraphics, 22); // Middle of Y
-
-		Rip32x32Sprite(image, new Point(93, 52), 29, inversePalette, spriteGraphics, 8); // Top of crystal
-		Rip32x32Sprite(image, new Point(93, 84), 29, inversePalette, spriteGraphics, 9); // Bottom of crystal
-
-		Rip32x32Sprite(image, new Point(130, 107), 32, inversePalette, spriteGraphics, 10); // Superizer
-		Rip32x32Sprite(image, new Point(162, 107), 32, inversePalette, spriteGraphics, 11); // Superizer
-		Rip32x32Sprite(image, new Point(194, 107), 32, inversePalette, spriteGraphics, 12); // Superizer
-		Rip32x32Sprite(image, new Point(226, 107), 27, inversePalette, spriteGraphics, 13); // Superizer
-
-		WriteSpriteData(spriteData, 0, new Point(2, 56), 0, isLarge: false); // Top of F
-		WriteSpriteData(spriteData, 1, new Point(2, 72), 2, isLarge: false); // Middle of F
-		WriteSpriteData(spriteData, 2, new Point(2, 88), 4, isLarge: false); // Bottom of F
-
-		WriteSpriteData(spriteData, 3, new Point(18, 56), 6, isLarge: false); // Top of I
-		WriteSpriteData(spriteData, 4, new Point(18, 72), 8, isLarge: false); // Middle of I
-		WriteSpriteData(spriteData, 5, new Point(18, 88), 4, isLarge: false); // Bottom of I
-
-		WriteSpriteData(spriteData, 6, new Point(28, 56), 10, isLarge: false); // Top of N
-		WriteSpriteData(spriteData, 7, new Point(44, 56), 12, isLarge: false); // Top-right of N
-		WriteSpriteData(spriteData, 8, new Point(28, 72), 14, isLarge: false); // Middle of N
-		WriteSpriteData(spriteData, 9, new Point(28, 88), 32, isLarge: false); // Bottom of N
-		WriteSpriteData(spriteData, 10, new Point(44, 88), 34, isLarge: false); // Bottom-right of N
-
-		WriteSpriteData(spriteData, 11, new Point(48, 56), 36, isLarge: false); // Top of A
-		WriteSpriteData(spriteData, 12, new Point(48, 72), 38, isLarge: false); // Middle of A
-		WriteSpriteData(spriteData, 13, new Point(48, 88), 40, isLarge: false); // Bottom of A
-		WriteSpriteData(spriteData, 14, new Point(64, 88), 42, isLarge: false); // Bottom-right of A
-	
-		WriteSpriteData(spriteData, 15, new Point(68, 56), 6, isLarge: false); // Top of L
-		WriteSpriteData(spriteData, 16, new Point(68, 72), 44, isLarge: false); // Middle of L
-		WriteSpriteData(spriteData, 17, new Point(68, 88), 46, isLarge: false); // Bottom of L
-
-		WriteSpriteData(spriteData, 18, new Point(131, 56), 0, isLarge: false); // Top of F
-		WriteSpriteData(spriteData, 19, new Point(131, 72), 2, isLarge: false); // Middle of F
-		WriteSpriteData(spriteData, 20, new Point(131, 88), 4, isLarge: false); // Bottom of F
-
-		WriteSpriteData(spriteData, 21, new Point(147, 56), 36, isLarge: false); // Top of A
-		WriteSpriteData(spriteData, 22, new Point(147, 72), 38, isLarge: false); // Middle of A
-		WriteSpriteData(spriteData, 23, new Point(147, 88), 40, isLarge: false); // Bottom of A
-		WriteSpriteData(spriteData, 24, new Point(163, 88), 42, isLarge: false); // Bottom-right of A
-
-		WriteSpriteData(spriteData, 25, new Point(167, 56), 10, isLarge: false); // Top of N
-		WriteSpriteData(spriteData, 26, new Point(183, 56), 12, isLarge: false); // Top-right of N
-		WriteSpriteData(spriteData, 27, new Point(167, 72), 14, isLarge: false); // Middle of N
-		WriteSpriteData(spriteData, 28, new Point(167, 88), 32, isLarge: false); // Bottom of N
-		WriteSpriteData(spriteData, 29, new Point(183, 88), 34, isLarge: false); // Bottom-right of N
-
-		WriteSpriteData(spriteData, 30, new Point(186, 56), 64, isLarge: false); // Top of T
-		WriteSpriteData(spriteData, 31, new Point(188, 72), 8, isLarge: false); // Middle of T
-		WriteSpriteData(spriteData, 32, new Point(188, 88), 4, isLarge: false); // Bottom of T
-
-		WriteSpriteData(spriteData, 33, new Point(201, 56), 36, isLarge: false); // Top of A
-		WriteSpriteData(spriteData, 34, new Point(201, 72), 38, isLarge: false); // Middle of A
-		WriteSpriteData(spriteData, 35, new Point(201, 88), 40, isLarge: false); // Bottom of A
-		WriteSpriteData(spriteData, 36, new Point(217, 88), 42, isLarge: false); // Bottom-right of A
-
-		WriteSpriteData(spriteData, 37, new Point(221, 56), 66, isLarge: false); // Top of S
-		WriteSpriteData(spriteData, 38, new Point(221, 72), 68, isLarge: false); // Middle of S
-		WriteSpriteData(spriteData, 39, new Point(221, 88), 70, isLarge: false); // Bottom of S
-
-		WriteSpriteData(spriteData, 40, new Point(235, 56), 72, isLarge: false); // Top of Y
-		WriteSpriteData(spriteData, 41, new Point(251, 56), 74, isLarge: false); // Top-right of Y
-		WriteSpriteData(spriteData, 42, new Point(235, 72), 76, isLarge: false); // Middle of Y
-		WriteSpriteData(spriteData, 43, new Point(239, 88), 4, isLarge: false); // Bottom of Y
-
-		WriteSpriteData(spriteData, 44, new Point(93, 52), 128, isLarge: true); // Top of Crystal
-		WriteSpriteData(spriteData, 45, new Point(93, 84), 132, isLarge: true); // Bottom of Crystal
-
-		WriteSpriteData(spriteData, 46, new Point(131, 107), 136, isLarge: true); // Superizer
-		WriteSpriteData(spriteData, 47, new Point(163, 107), 140, isLarge: true); // Superizer
-		WriteSpriteData(spriteData, 48, new Point(195, 107), 192, isLarge: true); // Superizer
-		WriteSpriteData(spriteData, 49, new Point(227, 107), 196, isLarge: true); // Superizer
-		*/
-
 		using var paletteFile = File.OpenWrite("assets/graphics/title-screen-palette.pal");
 		var paletteBytes = new byte[32];
 		Buffer.BlockCopy(palette, 0, paletteBytes, 0, 32);
@@ -586,19 +480,56 @@ public static class UnpackGraphics
 		handPaletteFile.Close();
 	}
 
-	private static void Rip16x16Sprite(Image<Bgra5551> image, Point origin, int width, Dictionary<ushort, int> inversePalette, byte[] buffer, int spriteIndex)
+	public static void UnpackBattleCharacterSprites()
+	{
+		using var image = Image.Load<Bgra5551>("packs/ff4like/CharacterSprites.png");
+		byte[] sprites = new byte[0x6000]; // 3/4 of a bank full of sprites (too many to load all at once!)
+		byte[] palettes = new byte[0x180]; // 12 palettes of 16 colors each, 2 bytes per color
+
+		for (int c = 0; c < 6; c++) // character classes
+		{
+			var baseClassInversePalette = GetInversePalette(image, new Rectangle(0, 24 * c, 104, 24));
+			var promotedClassInversePalette = GetInversePalette(image, new Rectangle(104, 24 * c, 104, 24));
+			var baseClassPalette = GetPalette(baseClassInversePalette, 16);
+			var promotedClassPalette = GetPalette(promotedClassInversePalette, 16);
+			Buffer.BlockCopy(baseClassPalette, 0, palettes, 32 * c, 32);
+			Buffer.BlockCopy(promotedClassPalette, 0, palettes, 32 * (c + 6), 32);
+
+			for (int i = 0; i < 5; i++)
+			{
+				Rip16x16Sprite(image, new Point(16 * i, 24 * c), 16, 16, baseClassInversePalette, sprites, 16 * c + i);
+				Rip16x16Sprite(image, new Point(16 * i, 24 * c + 16), 16, 8, baseClassInversePalette, sprites, 16 * c + i + 8);
+				Rip16x16Sprite(image, new Point(16 * i + 104, 24 * c), 16, 16, promotedClassInversePalette, sprites, 16 * (c + 6) + i);
+				Rip16x16Sprite(image, new Point(16 * i + 104, 24 * c + 16), 16, 8, promotedClassInversePalette, sprites, 16 * (c + 6) + i + 8);
+			}
+			Rip16x16Sprite(image, new Point(80, 24 * c + 8), 16, 16, baseClassInversePalette, sprites, 16 * c + 5);
+			Rip16x16Sprite(image, new Point(96, 24 * c + 8), 8, 16, baseClassInversePalette, sprites, 16 * c + 6);
+			Rip16x16Sprite(image, new Point(184, 24 * c + 8), 16, 16, promotedClassInversePalette, sprites, 16 * (c + 6) + 5);
+			Rip16x16Sprite(image, new Point(200, 24 * c + 8), 8, 16, promotedClassInversePalette, sprites, 16 * (c + 6) + 6);
+		}
+
+		using var spriteFile = File.OpenWrite("assets/graphics/battle-sprites.4bpp");
+		spriteFile.Write(sprites);
+		spriteFile.Close();
+
+		using var paletteFile = File.OpenWrite("assets/graphics/battle-sprite-palettes.pal");
+		paletteFile.Write(palettes);
+		paletteFile.Close();
+	}
+
+	private static void Rip16x16Sprite(Image<Bgra5551> image, Point origin, int width, int height, Dictionary<ushort, int> inversePalette, byte[] buffer, int spriteIndex)
 	{
 		byte[] chr;
 		int row = spriteIndex / 8;
 		int col = spriteIndex % 8;
 		int offset = (row * 16 * 2 + col * 2) * 32;
-		chr = ConvertBgra5551To4bpp(image, origin, inversePalette, limit: width);
+		chr = ConvertBgra5551To4bpp(image, origin, inversePalette, widthLimit: width, heightLimit: height);
 		chr.CopyTo(buffer, offset);
-		chr = ConvertBgra5551To4bpp(image, origin + new Size(8, 0), inversePalette, limit: width - 8);
+		chr = ConvertBgra5551To4bpp(image, origin + new Size(8, 0), inversePalette, widthLimit: width - 8, heightLimit: height);
 		chr.CopyTo(buffer, offset + 32);
-		chr = ConvertBgra5551To4bpp(image, origin + new Size(0, 8), inversePalette, limit: width);
+		chr = ConvertBgra5551To4bpp(image, origin + new Size(0, 8), inversePalette, widthLimit: width, heightLimit: height - 8);
 		chr.CopyTo(buffer, offset + 16 * 32);
-		chr = ConvertBgra5551To4bpp(image, origin + new Size(8, 8), inversePalette, limit: width - 8);
+		chr = ConvertBgra5551To4bpp(image, origin + new Size(8, 8), inversePalette, widthLimit: width - 8, heightLimit: height - 8);
 		chr.CopyTo(buffer, offset + 16 * 32 + 32);
 	}
 
@@ -612,7 +543,7 @@ public static class UnpackGraphics
 		{
 			for (int i = 0; i < 4; i++)
 			{
-				chr = ConvertBgra5551To4bpp(image, origin + new Size(8 * i, 8 * j), inversePalette, limit: width - i * 8);
+				chr = ConvertBgra5551To4bpp(image, origin + new Size(8 * i, 8 * j), inversePalette, widthLimit: width - i * 8);
 				chr.CopyTo(buffer, offset + j * 16 * 32 + i * 32);
 			}
 		}

@@ -47,6 +47,7 @@
 .import SetMode7Matrix
 .import SetupAirshipMode7HDMA
 
+.export CopyBG3TileMapBufferToVRAM
 .export DMA2VRAML : far
 
 .include "registers.inc"
@@ -158,15 +159,7 @@
 .proc CopyBG3TileMapBufferToVRAM
 	php
 	rep #$10             ; set X,Y to 16-bit
-	pea 0                ; bank (doesn't matter, the buffer is in low WRAM)
-	pea BG3TileMapBuffer ; source
-	pea $3800            ; dest
-	pea $0800            ; size
-	jsl DMA2VRAML
-	plx
-	plx
-	plx
-	plx
+	LONGCALL DMA2VRAML, 0, BG3TileMapBuffer, $3800, $0800
 	plp
 	rts
 .endproc

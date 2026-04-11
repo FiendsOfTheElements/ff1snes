@@ -92,23 +92,33 @@ public static class ImageRipper
 	/// Converts a single 8x8 character from 16-bit to SNES 4bpp.
 	/// </summary>
 	/// <param name="characterPos=">The upper-left corner of an 8x8 character to convert.</param>
-	public static byte[] ConvertBgra5551To4bpp(Image<Bgra5551> image, Point characterPos, Dictionary<ushort, int> inversePalette, bool flipped = false, int limit = 8)
+	public static byte[] ConvertBgra5551To4bpp(Image<Bgra5551> image, Point characterPos, Dictionary<ushort, int> inversePalette, bool flipped = false, int widthLimit = 8, int heightLimit = 8)
 	{
 		byte[] buffer = new byte[32];
 		image.ProcessPixelRows(accessor =>
 		{
 			for (int y = 0; y < 8; y++)
 			{
-				var row = accessor.GetRowSpan(characterPos.Y + y);
-				for (int x = 0; x < 8; x++)
+				if (y >= heightLimit)
 				{
-					var actualX = flipped ? characterPos.X + x : characterPos.X + 7 - x;
-					var color = actualX >= characterPos.X + limit ? (ushort)0x7c1f : (ushort)(row[actualX].PackedValue & 0x7fff);
-					var paletteIndex = inversePalette[color];
-					buffer[2 * y] |= (byte)(((paletteIndex & 0x01)) << x);
-					buffer[2 * y + 1] |= (byte)(((paletteIndex & 0x02) >> 1) << x);
-					buffer[2 * y + 16] |= (byte)(((paletteIndex & 0x04) >> 2) << x);
-					buffer[2 * y + 17] |= (byte)(((paletteIndex & 0x08) >> 3) << x);
+					buffer[2 * y] = 0;
+					buffer[2 * y + 1] = 0;
+					buffer[2 * y + 16] = 0;
+					buffer[2 * y + 17] = 0;
+				}
+				else
+				{
+					var row = accessor.GetRowSpan(characterPos.Y + y);
+					for (int x = 0; x < 8; x++)
+					{
+						var actualX = flipped ? characterPos.X + x : characterPos.X + 7 - x;
+						var color = actualX >= characterPos.X + widthLimit ? (ushort)0x7c1f : (ushort)(row[actualX].PackedValue & 0x7fff);
+						var paletteIndex = inversePalette[color];
+						buffer[2 * y] |= (byte)(((paletteIndex & 0x01)) << x);
+						buffer[2 * y + 1] |= (byte)(((paletteIndex & 0x02) >> 1) << x);
+						buffer[2 * y + 16] |= (byte)(((paletteIndex & 0x04) >> 2) << x);
+						buffer[2 * y + 17] |= (byte)(((paletteIndex & 0x08) >> 3) << x);
+					}
 				}
 			}
 		});

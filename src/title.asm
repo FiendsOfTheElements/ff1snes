@@ -155,24 +155,45 @@ FontPalette:
 	ClassSelections = $1C ; 4 bytes, one per character
 	CharacterNames  = $20 ; 32 bytes, 8 per character, fixed-length strings
 	ClassPosition   = $1B
-	PartyPosition   = $1A
-	NamePosition    = $19
 	sep #$20             ; A to 8-bit
-	lda #$ff
-	sta NamePosition
-	sta PartyPosition
 	stz ClassPosition
 	jsr InitializeCharacterSelect
 
-	rep #$20
+	rep #$20             ; A to 16-bit
+	sep #$10             ; X,Y to 8-bit
 @InputLoop:
+	jsr PlaceHand
 	wai
 	jsr GetJoypadInputs
 @CheckA:
 	lda JoyTrigger1
 	and #BUTTON_A | BUTTON_START
+	bne @Done
+@CheckLeft:
+	lda JoyTrigger1
+	and #BUTTON_LEFT
+	beq @CheckRight
+	ldx ClassPosition
+	dex
+	stx ClassPosition
+	bpl @InputLoop
+	ldx #$05
+	stx ClassPosition
+	bra @InputLoop
+@CheckRight:
+	lda JoyTrigger1
+	and #BUTTON_RIGHT
 	beq @InputLoop
+	ldx ClassPosition
+	inx
+	stx ClassPosition
+	cpx #$06
+	bne @InputLoop
+	ldx #$00
+	stx ClassPosition
+	bra @InputLoop
 
+@Done:
 	rts
 .endproc
 
@@ -273,19 +294,7 @@ FontPalette:
 	bne @HandPaletteLoop
 
 	jsr DrawCharacterSelectScreen
-
-	; Hand starts at 38, 25, 4 pixels down from the class and with a gap of 2 pixels to the right
-	ldx #$1926
-	stx OamMirror
-	ldx #$1c0e
-	stx OamMirror + $02
-
-	stz OamMirror + $200  ; set the high bit of x to 0 for these 12 sprites
-	stz OamMirror + $201
-	stz OamMirror + $202
-	lda #$54
-	sta OamMirror + $203  ; and the 13th sprite
-
+	jsr PlaceHand
 	jsr CopyBG3TileMapBufferToVRAM
 	jsr CopyOamMirrorToOAM
 
@@ -361,6 +370,36 @@ FontPalette:
 	cpy #$0006
 	bne @ClassLoop
 
+	stz OamMirror + $200  ; set the high bit of x to 0 for these 12 sprites
+	stz OamMirror + $201
+	stz OamMirror + $202
+	lda #$54
+	sta OamMirror + $203  ; and the 13th sprite
+
+	rts
+.endproc
+
+.proc PlaceHand
+	ClassPosition   = $1B
+	php
+	sep #$20                ; A is 8-bit
+	; Hand starts at 38, 25, 4 pixels down from the class and with a gap of 2 pixels to the right
+	lda ClassPosition
+	asl
+	adc ClassPosition       ; c * 3
+	asl
+	asl
+	asl                     ; c * 24
+	adc #$26
+	sta OamMirror
+	lda #$19
+	sta OamMirror + $01
+	lda #$0e
+	sta OamMirror + $02
+	lda #$1c
+	sta OamMirror + $03
+
+	plp
 	rts
 .endproc
 

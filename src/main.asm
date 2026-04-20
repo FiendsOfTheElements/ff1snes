@@ -9,7 +9,7 @@
 	.byte $00 ; Use ROMINFOEX
 	.byte $20 ; LoROM, SlowROM
 	.byte $02 ; Battery SRAM, no co-processor
-	.byte $07 ; 128K ROM (we'll increase this later)
+	.byte $08 ; 256K ROM (we'll increase this later)
 	.byte $05 ; 32K SRAM (can increase if needed)
 	.byte $01 ; North America (there doesn't seem to be a standard for "any region")
 	.byte $33 ; Developer ID ($33 means use ROMINFOEX)
@@ -47,6 +47,7 @@
 .import SetMode7Matrix
 .import SetupAirshipMode7HDMA
 
+.export CopyOamMirrorToOAM
 .export CopyBG3TileMapBufferToVRAM
 .export DMA2VRAML : far
 

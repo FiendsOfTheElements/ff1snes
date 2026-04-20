@@ -93,7 +93,7 @@ WMADDM      = $2182
 WMADDH      = $2183
 
 JOYOUT      = $4016     ; Joypad output (latches standard controllers)
-JOUSER0     = $4016     ; Joypad 1 serial input
+JOYSER0     = $4016     ; Joypad 1 serial input
 JOYSER1     = $4017     ; Joypad 2 serial input
 
 NMITIMEN    = $4200     ; NxVH xxxJ VBlank e(N)able, timer IRQ mode (VH), (J)oypad auto-read enable
@@ -156,7 +156,7 @@ DMA0AMTL    = $4305     ; DMA Channel 0 number of bytes to transfer
 DMA0AMTH    = $4306
 DMA0INDH    = $4307     ; DMA Channel 0 intermediate data address during HDMA indirect transfer
 DMA0ADDA2L  = $4308     ; DMA Channel 0 intermediate A-bus address
-DMA0ADDA2H  = $4309     
+DMA0ADDA2H  = $4309
 DMA0LINES   = $430A     ; RLLL LLLL HDMA (R)eload, and (L)ine counter
 DMA0UNUSED  = $430B     ; DMA Channel 0 unused register
 

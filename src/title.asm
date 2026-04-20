@@ -11,6 +11,7 @@
 
 .import GetJoypadInputs
 .import CopyBG3TileMapBufferToVRAM
+.import CopyOamMirrorToOAM
 .import DMA2VRAML : far
 
 .segment "TITLEGRAPHICS"
@@ -151,13 +152,25 @@ FontPalette:
 .endproc
 
 .proc DoCharacterSelect
+	ClassSelections = $1C ; 4 bytes, one per character
+	CharacterNames  = $20 ; 32 bytes, 8 per character, fixed-length strings
+	ClassPosition   = $1B
+	PartyPosition   = $1A
+	NamePosition    = $19
+	sep #$20             ; A to 8-bit
+	lda #$ff
+	sta NamePosition
+	sta PartyPosition
+	stz ClassPosition
 	jsr InitializeCharacterSelect
 
+	rep #$20
 @InputLoop:
 	wai
 	jsr GetJoypadInputs
+@CheckA:
 	lda JoyTrigger1
-	and #(BUTTON_A | BUTTON_START)
+	and #BUTTON_A | BUTTON_START
 	beq @InputLoop
 
 	rts
@@ -237,6 +250,9 @@ FontPalette:
 	; Load the sprites.
 	LONGCALL DMA2VRAML, BANK_BATTLESPRITES, BattleSprites, $6000, $3000
 
+	LONGCALL DMA2VRAML, BANK_TITLEGRAPHICS, HandSprite, $60E0, $0040
+	LONGCALL DMA2VRAML, BANK_TITLEGRAPHICS, HandSprite + $40, $61E0, $0040
+
 	sep #$20                  ; A to 8-bit
 	lda #$80
 	sta CGADD                 ; start at CGRAM address $80
@@ -248,21 +264,103 @@ FontPalette:
 	cpx #$00C0                ; length of palette data
 	bne @BattleSpritePaletteLoop
 
-	CALL DrawWindow,  6,  0, 25,  5
-	CALL DrawWindow,  1,  7, 13, 23
-	CALL DrawWindow, 15,  7, 30, 23
-	CALL DrawWindow, 19, 25, 30, 27
+	ldx #$0000
+@HandPaletteLoop:
+	lda HandPalette, X
+	sta CGDATA
+	inx
+	cpx #$0020                ; just one hand palette
+	bne @HandPaletteLoop
 
-	CALL DrawText, PartySelectString, 8, 0
-	CALL DrawText, StatusString, 19, 7
-	CALL DrawText, StartGameString, 20, 26
+	jsr DrawCharacterSelectScreen
+
+	; Hand starts at 38, 25, 4 pixels down from the class and with a gap of 2 pixels to the right
+	ldx #$1926
+	stx OamMirror
+	ldx #$1c0e
+	stx OamMirror + $02
+
+	stz OamMirror + $200  ; set the high bit of x to 0 for these 12 sprites
+	stz OamMirror + $201
+	stz OamMirror + $202
+	lda #$54
+	sta OamMirror + $203  ; and the 13th sprite
 
 	jsr CopyBG3TileMapBufferToVRAM
+	jsr CopyOamMirrorToOAM
 
 	lda #$0f
 	sta INIDISP             ; release forced blanking, set screen to full brightness
 	lda #$81
 	sta NMITIMEN            ; enable NMI, turn on automatic joypad polling
+
+	rts
+.endproc
+
+.proc DrawCharacterSelectScreen
+	CALL DrawWindow,  6,  1, 24,  6
+	CALL DrawWindow,  1,  8, 13, 24
+	CALL DrawWindow, 15,  8, 30, 24
+
+	CALL DrawText, PartySelectString, 8, 1
+	CALL DrawText, StatusString, 19, 8
+
+	; Put character sprites in the party select window.
+	sep #$20          ; A 8-bit
+	ldy #$0000
+	ldx #$0004        ; start at sprite 1, sprite 0 is the hand
+	Temp = $00
+@ClassLoop:
+	; Leftmost class is at tile position 7, 3, which is 56, 21 pixels
+	; So each character gets drawn at position 56 + 24*c, 21
+	; The bottom half gets drawn at position 56 + 24*c, 37
+	tya
+	asl
+	asl
+	asl                   ; 8*c
+	sta Temp
+	asl                   ; 16*c
+	adc Temp              ; 24*c
+	adc #$38              ; 24*c + 56
+	sta OamMirror, X      ; sprite 1 x coordinate
+	sta OamMirror + 4, X  ; sprite 2 x coordinate
+	inx
+	lda #$15
+	sta OamMirror, X      ; sprite 1 y coordinate
+	lda #$25
+	sta OamMirror + 4, X  ; sprite 2 y coordinate
+	inx
+	tya
+	asl
+	asl
+	asl
+	asl
+	asl
+	asl                   ; c*64 is the sprite tile index
+	sta OamMirror, X      ; sprite 1 tile
+	clc
+	adc #$20
+	sta OamMirror + 4, X  ; sprite 2 tile
+	inx
+	tya
+	asl                   ; bits 1-3 are the palette, equal to c
+	ora #$10              ; priority
+	cpy #$04
+	bmi :+
+	ora #$01              ; set the overflow bit of the tile index if c >= 4
+:
+	sta OamMirror, X      ; sprite 1 properties
+	sta OamMirror + 4, X  ; sprite 2 properties
+	inx
+
+	inx
+	inx
+	inx
+	inx                   ; move X past sprite 2
+	iny
+	cpy #$0006
+	bne @ClassLoop
+
 	rts
 .endproc
 
@@ -304,7 +402,7 @@ FontPalette:
 	sec
 	sbc x1
 	pha                           ; push the tile count
-	pea BorderTL                 ; push the top border tiles
+	pea BorderTL                  ; push the top border tiles
 	pea BorderT
 	pea BorderTR
 	jsr DrawWindowRow             ; Draw the top row
@@ -366,7 +464,6 @@ FontPalette:
 
 PartySelectString: .asciiz " PARTY  SELECT "
 StatusString:      .asciiz " STATUS "
-StartGameString:   .asciiz "START GAME"
 
 .proc DrawWindowRow
 	TileCount  = $0B

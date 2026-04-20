@@ -460,13 +460,13 @@ public static class UnpackGraphics
 		inversePalette = GetInversePalette(image, new Rectangle(new Point(104, 24), new Size(16, 16)));
 		var palette = GetPalette(inversePalette, 16);
 
-		chr = ConvertBgra5551To2bpp(image, new Point(104, 24), inversePalette);
+		chr = ConvertBgra5551To4bpp(image, new Point(104, 24), inversePalette);
 		chr.CopyTo(spriteGraphics, 0);
-		chr = ConvertBgra5551To2bpp(image, new Point(112, 24), inversePalette);
+		chr = ConvertBgra5551To4bpp(image, new Point(112, 24), inversePalette);
 		chr.CopyTo(spriteGraphics, 32);
-		chr = ConvertBgra5551To2bpp(image, new Point(104, 32), inversePalette);
+		chr = ConvertBgra5551To4bpp(image, new Point(104, 32), inversePalette);
 		chr.CopyTo(spriteGraphics, 64);
-		chr = ConvertBgra5551To2bpp(image, new Point(112, 32), inversePalette);
+		chr = ConvertBgra5551To4bpp(image, new Point(112, 32), inversePalette);
 		chr.CopyTo(spriteGraphics, 96);
 
 		using var handSpriteFile = File.OpenWrite("assets/graphics/hand.4bpp");

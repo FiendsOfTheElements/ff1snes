@@ -28,3 +28,6 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+
+# VS Code locals
+.vs/

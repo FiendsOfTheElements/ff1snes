@@ -163,6 +163,7 @@ FontPalette:
 .feature string_escapes
 PartySelectString: .asciiz " PARTY  SELECT "
 StatusString:      .asciiz " STATUS "
+NameEntryString:   .asciiz " NAME  ENTRY "
 
 ClassNameStrings:
 	.byte "Fighter "
@@ -570,7 +571,7 @@ InputPosition   = $17
 	asl
 	adc #CharacterNames
 	pha
-	CALL DrawFixedText, 8, 10, 3 ; omit the first parameter because we already pushed it
+	CALL DrawFixedText, 8, 13, 3 ; omit the first parameter because we already pushed it
 	pla
 
 	plp
@@ -579,10 +580,11 @@ InputPosition   = $17
 
 .proc DrawKeyboard
 	php
-	rep #$10                          ; X,Y to 16-bit
+	XY16
 
-	CALL DrawWindow, 6, 2, 23, 6
+	CALL DrawWindow, 9, 2, 21, 6
 	CALL DrawWindow, 1, 8, 29, 22
+	CALL DrawText, NameEntryString, 9, 8
 
 	CALL DrawText, AMString, 3, 10
 	CALL DrawText, NZString, 3, 12
@@ -590,6 +592,43 @@ InputPosition   = $17
 	CALL DrawText, nzString, 3, 16
 	CALL DrawText, NumString, 3, 18
 	CALL DrawText, SymString, 3, 20
+
+	lda ClassPosition
+	and #$00ff
+	asl
+	asl
+	asl
+	adc #ClassNameStrings  ; index into this array of length-8 strings by class
+	pha
+	CALL DrawFixedText, 8, 13, 5
+	pla
+
+	; Move sprites 1-12 off the screen.
+	AXY8
+	ldx #$05                          ; Y coordinate of sprite 1
+	lda #$e0
+@SpriteLoop:
+	sta OamMirror, X
+	inx
+	inx
+	inx
+	inx
+	cpx #$35                          ; sprite 13
+	bne @SpriteLoop
+
+	lda ClassPosition                 ; get the class that was selected on the previous screen
+	asl
+	asl                               ; 4 bytes per sprite, and
+	asl                               ; 2 sprites per class (top and bottom)
+	adc #$04                          ; skip over the hand sprite
+	tax
+	lda #$50                          ; x position of the character sprite
+	sta OamMirror, X
+	sta OamMirror + 4, X              ; x position of the bottom of character sprite
+	lda #$16                          ; y position
+	sta OamMirror + 1, X
+	lda #$26                          ; y position bottom
+	sta OamMirror + 5, X
 
 	plp
 	rts

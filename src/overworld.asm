@@ -3,6 +3,7 @@
 .i16
 
 .include "defines.inc"
+.include "macros.inc"
 .include "registers.inc"
 .include "joypad.inc"
 

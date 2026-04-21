@@ -3,6 +3,7 @@
 .i16
 
 .include "defines.inc"
+.include "macros.inc"
 .include "registers.inc"
 .include "joypad.inc"
 
@@ -109,7 +110,7 @@ FontPalette:
 
 	jsr GetJoypadInputs
 	lda JoyTrigger1
-	and #(BUTTON_A | BUTTON_START)
+	and #BUTTON_A | BUTTON_START
 	beq @InputLoop
 	pla                     ; clear the stack
 
@@ -162,12 +163,18 @@ FontPalette:
 	rep #$20             ; A to 16-bit
 	sep #$10             ; X,Y to 8-bit
 @InputLoop:
-	jsr PlaceHand
+	jsr PlaceHandOnCharacterSelectScreen
 	wai
 	jsr GetJoypadInputs
 @CheckA:
 	lda JoyTrigger1
-	and #BUTTON_A | BUTTON_START
+	and #BUTTON_A
+	beq @CheckStart
+	jsr DoNameInput
+	bra @InputLoop
+@CheckStart:
+	lda JoyTrigger1
+	and #BUTTON_START
 	bne @Done
 @CheckLeft:
 	lda JoyTrigger1
@@ -175,9 +182,9 @@ FontPalette:
 	beq @CheckRight
 	ldx ClassPosition
 	dex
-	stx ClassPosition
-	bpl @InputLoop
+	bpl :+
 	ldx #$05
+:
 	stx ClassPosition
 	bra @InputLoop
 @CheckRight:
@@ -186,10 +193,10 @@ FontPalette:
 	beq @InputLoop
 	ldx ClassPosition
 	inx
-	stx ClassPosition
 	cpx #$06
-	bne @InputLoop
+	bne :+
 	ldx #$00
+:
 	stx ClassPosition
 	bra @InputLoop
 
@@ -214,6 +221,8 @@ FontPalette:
 ; BG3SC   = $38
 
 	sep #$20                ; A to 8-bit
+	rep #$10                  ; X,Y to 16-bit
+
 	lda #GAME_MODE_DUNGEON  ; character select uses mode 1, like the subscreen or a town shop
 	sta GameMode
 
@@ -239,26 +248,10 @@ FontPalette:
 	sta TS
 	stz HDMAEN              ; turn off any HDMA
 
-	; We're going to clear out BG3.
-	lda #$80                      ; VRAM increment on write to VMDATAH
-	sta VMAINC
-	rep #$30                      ; A,X,Y to 16-bit
-
-	; Zero out the BG3 tilemap buffer and copy it to VRAM.
-	lda #$0001
-	sta BG3TileMapBufferDirty     ; 2-byte write to a 1-byte variable, but the second byte will get overwritten immediately
-	ldx #$0000
-@BG3Loop:
-	stz BG3TileMapBuffer, X
-	inx
-	inx
-	cpx #$0800
-	bne @BG3Loop
-
+	jsr ClearBG3TileBuffer
 	; Load the font graphics.
 	LONGCALL DMA2VRAML, BANK_TITLEGRAPHICS, FontChr, $3000, $1000
 
-	sep #$20                  ; A to 8-bit
 	stz CGADD                 ; start at CGRAM address $00
 	ldx #$0000
 @FontPaletteLoop:
@@ -274,7 +267,6 @@ FontPalette:
 	LONGCALL DMA2VRAML, BANK_TITLEGRAPHICS, HandSprite, $60E0, $0040
 	LONGCALL DMA2VRAML, BANK_TITLEGRAPHICS, HandSprite + $40, $61E0, $0040
 
-	sep #$20                  ; A to 8-bit
 	lda #$80
 	sta CGADD                 ; start at CGRAM address $80
 	ldx #$0000
@@ -294,7 +286,9 @@ FontPalette:
 	bne @HandPaletteLoop
 
 	jsr DrawCharacterSelectScreen
-	jsr PlaceHand
+	ClassPosition   = $1B
+	stz ClassPosition
+	jsr PlaceHandOnCharacterSelectScreen
 	jsr CopyBG3TileMapBufferToVRAM
 	jsr CopyOamMirrorToOAM
 
@@ -307,6 +301,9 @@ FontPalette:
 .endproc
 
 .proc DrawCharacterSelectScreen
+	php
+	sep #$20          ; A 8-bit
+	rep #$10                          ; X,Y to 16-bit
 	CALL DrawWindow,  6,  1, 24,  6
 	CALL DrawWindow,  1,  8, 13, 24
 	CALL DrawWindow, 15,  8, 30, 24
@@ -315,7 +312,6 @@ FontPalette:
 	CALL DrawText, StatusString, 19, 8
 
 	; Put character sprites in the party select window.
-	sep #$20          ; A 8-bit
 	ldy #$0000
 	ldx #$0004        ; start at sprite 1, sprite 0 is the hand
 	Temp = $00
@@ -376,12 +372,31 @@ FontPalette:
 	lda #$54
 	sta OamMirror + $203  ; and the 13th sprite
 
+	plp
 	rts
 .endproc
 
-.proc PlaceHand
+PartySelectString: .asciiz " PARTY  SELECT "
+StatusString:      .asciiz " STATUS "
+
+ClassNameStrings:
+	.byte "Fighter "
+	.byte "Thief   "
+	.byte "Blk Belt"
+	.byte "Red Mage"
+	.byte "Wht Mage"
+	.byte "Blk Mage"
+	.byte "Knight  "
+	.byte "Ninja   "
+	.byte "Master  "
+	.byte "Red Wiz "
+	.byte "Wht Wiz "
+	.byte "Blk Wiz "
+
+.proc PlaceHandOnCharacterSelectScreen
 	ClassPosition   = $1B
 	php
+
 	sep #$20                ; A is 8-bit
 	; Hand starts at 38, 25, 4 pixels down from the class and with a gap of 2 pixels to the right
 	lda ClassPosition
@@ -393,6 +408,147 @@ FontPalette:
 	adc #$26
 	sta OamMirror
 	lda #$19
+	sta OamMirror + $01
+	lda #$0e
+	sta OamMirror + $02
+	lda #$1c
+	sta OamMirror + $03
+
+	plp
+	rts
+.endproc
+
+.proc DoNameInput
+	php
+
+	jsr ClearBG3TileBuffer
+	jsr DrawKeyboard
+
+	XPosition   = $1A
+	YPosition   = $19
+	sep #$20            ; A to 8-bit
+	stz XPosition
+	stz YPosition
+
+	rep #$20            ; A to 16-bit
+	sep #$10            ; X,Y to 8-bit
+@InputLoop:
+	jsr PlaceHandOnKeyboard
+	wai
+	jsr GetJoypadInputs
+@CheckA:
+	lda JoyTrigger1
+	and #BUTTON_A
+	beq @CheckStart
+	bra @Type
+@CheckStart:
+	lda JoyTrigger1
+	and #BUTTON_START
+	bne @Done
+@CheckLeft:
+	lda JoyTrigger1
+	and #BUTTON_LEFT
+	beq @CheckRight
+	ldx XPosition
+	dex
+	bpl :+
+	ldx #$0c
+:
+	stx XPosition
+	bra @InputLoop
+@CheckRight:
+	lda JoyTrigger1
+	and #BUTTON_RIGHT
+	beq @CheckUp
+	ldx XPosition
+	inx
+	cpx #$0d
+	bne :+
+	ldx #$00
+:
+	stx XPosition
+	bra @InputLoop
+@CheckUp:
+	lda JoyTrigger1
+	and #BUTTON_UP
+	beq @CheckDown
+	ldx YPosition
+	dex
+	bpl :+
+	ldx #$05
+:
+	stx YPosition
+	bra @InputLoop
+@CheckDown:
+	lda JoyTrigger1
+	and #BUTTON_DOWN
+	beq @InputLoop
+	ldx YPosition
+	inx
+	cpx #$06
+	bne :+
+	ldx #$00
+:
+	stx YPosition
+	bra @InputLoop
+
+@Type:
+	bra @InputLoop
+
+@Done:
+	jsr ClearBG3TileBuffer
+	jsr DrawCharacterSelectScreen
+
+	plp
+	rts
+.endproc
+
+.proc DrawKeyboard
+	php
+	rep #$10                          ; X,Y to 16-bit
+
+	CALL DrawWindow, 6, 2, 23, 6
+	CALL DrawWindow, 1, 8, 29, 22
+
+	CALL DrawText, AMString, 3, 10
+	CALL DrawText, NZString, 3, 12
+	CALL DrawText, amString, 3, 14
+	CALL DrawText, nzString, 3, 16
+	CALL DrawText, NumString, 3, 18
+	CALL DrawText, SymString, 3, 20
+
+	plp
+	rts
+.endproc
+
+.feature string_escapes
+AMString:  .asciiz "A B C D E F G H I J K L M"
+NZString:  .asciiz "N O P Q R S T U V W X Y Z"
+amString:  .asciiz "a b c d e f g h i j k l m"
+nzString:  .asciiz "n o p q r s t u v w x y z"
+NumString: .asciiz "1 2 3 4 5 6 7 8 9 0 - + /"
+SymString: .byte   "! ? . , % ; : ", $5f, " [ ] ' \"  ", $00 ; $5f is the ellipsis
+
+.proc PlaceHandOnKeyboard
+	XPosition   = $1A
+	YPosition   = $19
+	php
+
+	sep #$20                ; A is 8-bit
+	; Hand starts at 6, 78, pointing at the A
+	lda XPosition
+	asl
+	asl
+	asl
+	asl                     ; x * 16
+	adc #$06
+	sta OamMirror
+	lda YPosition
+	asl
+	asl
+	asl
+	asl                     ; y * 16
+	adc #$4e
 	sta OamMirror + $01
 	lda #$0e
 	sta OamMirror + $02
@@ -501,9 +657,6 @@ FontPalette:
 	rts
 .endproc
 
-PartySelectString: .asciiz " PARTY  SELECT "
-StatusString:      .asciiz " STATUS "
-
 .proc DrawWindowRow
 	TileCount  = $0B
 	LeftTile   = $09
@@ -546,7 +699,7 @@ StatusString:      .asciiz " STATUS "
 	tsc
 	tcd
 	php
-	rep #$20                ; A to 16-bit
+	rep #$30                ; A,X,Y to 16-bit
 
 	lda yCoord              ; formula is 2 * (y*32 + x), 2 bytes per tile, 32 tiles across
 	asl
@@ -573,6 +726,63 @@ StatusString:      .asciiz " STATUS "
 @Done:
 	plp
 	pld
+	rts
+.endproc
+
+.proc DrawFixedText
+	pText  = $0B
+	Length = $09
+	xCoord = $07
+	yCoord = $05
+	phd
+	tsc
+	tcd
+	php
+	rep #$30                ; A,X,Y to 16-bit
+
+	lda yCoord              ; formula is 2 * (y*32 + x), 2 bytes per tile, 32 tiles across
+	asl
+	asl
+	asl
+	asl
+	asl
+	clc
+	adc xCoord
+	asl
+	tax
+
+	ldy #$0000
+@Loop:
+	lda (pText), Y          ; fetch a character
+	and #$00ff              ; we just want one byte of text at a time
+	sta BG3TileMapBuffer, X ; we have to store two bytes for the tile
+	iny                     ; next character
+	inx                     ; and next tile location
+	inx
+	cpy Length
+	bne @Loop
+
+	plp
+	pld
+	rts
+.endproc
+
+.proc ClearBG3TileBuffer
+	php
+
+	rep #$30                      ; A,X,Y to 16-bit
+	; Zero out the BG3 tilemap buffer.
+	lda #$0001
+	sta BG3TileMapBufferDirty     ; 2-byte write to a 1-byte variable, but the second byte will get overwritten immediately
+	ldx #$0000
+@BG3Loop:
+	stz BG3TileMapBuffer, X
+	inx
+	inx
+	cpx #$0800
+	bne @BG3Loop
+
+	plp
 	rts
 .endproc
 

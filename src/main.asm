@@ -53,6 +53,7 @@
 
 .include "registers.inc"
 .include "defines.inc"
+.include "macros.inc"
 
 .segment "CODE"
 

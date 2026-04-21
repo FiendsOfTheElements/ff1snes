@@ -39,6 +39,10 @@ FontPalette:
 	COLOR 31, 31, 31
 	COLOR 16, 16, 16
 
+;;;;;;;;;;;;;;;;
+; Title Screen ;
+;;;;;;;;;;;;;;;;
+
 ; This sets up the video for the title screen, loads the data,
 ; and puts it on the screen, then waits for the player to press
 ; A or start.
@@ -152,16 +156,57 @@ FontPalette:
 	rts
 .endproc
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Party Selection Screen ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+.feature string_escapes
+PartySelectString: .asciiz " PARTY  SELECT "
+StatusString:      .asciiz " STATUS "
+
+ClassNameStrings:
+	.byte "Fighter "
+	.byte "Thief   "
+	.byte "Blk Belt"
+	.byte "Red Mage"
+	.byte "Wht Mage"
+	.byte "Blk Mage"
+	.byte "Knight  "
+	.byte "Ninja   "
+	.byte "Master  "
+	.byte "Red Wiz "
+	.byte "Wht Wiz "
+	.byte "Blk Wiz "
+
+AMString:  .asciiz "A B C D E F G H I J K L M"
+NZString:  .asciiz "N O P Q R S T U V W X Y Z"
+amString:  .asciiz "a b c d e f g h i j k l m"
+nzString:  .asciiz "n o p q r s t u v w x y z"
+NumString: .asciiz "1 2 3 4 5 6 7 8 9 0 - + /"
+SymString: .byte   "! ? . , % ; : ", $5f, " [ ] ' \"  ", $00 ; $5f is the ellipsis
+
+CharacterNames  = $20 ; 32 bytes, 8 per character, fixed-length strings
+ClassSelections = $1c ; 4 bytes, one per character
+ClassPosition   = $1b
+PartyPosition   = $1a
+XPosition       = $19
+YPosition       = $18
+InputPosition   = $17
+
 .proc DoCharacterSelect
-	ClassSelections = $1C ; 4 bytes, one per character
-	CharacterNames  = $20 ; 32 bytes, 8 per character, fixed-length strings
-	ClassPosition   = $1B
-	sep #$20             ; A to 8-bit
-	stz ClassPosition
 	jsr InitializeCharacterSelect
 
-	rep #$20             ; A to 16-bit
-	sep #$10             ; X,Y to 8-bit
+	AXY8
+	stz ClassPosition
+	stz PartyPosition
+	lda #$20                  ; space
+	ldx #$1f
+@CharacterNameLoop:
+	sta CharacterNames, X
+	dex
+	bpl @CharacterNameLoop
+
+	A16
 @InputLoop:
 	jsr PlaceHandOnCharacterSelectScreen
 	wai
@@ -170,7 +215,13 @@ FontPalette:
 	lda JoyTrigger1
 	and #BUTTON_A
 	beq @CheckStart
+	ldx PartyPosition
+	cpx #$04
+	beq @Done
 	jsr DoNameInput
+	ldx PartyPosition
+	inx
+	stx PartyPosition
 	bra @InputLoop
 @CheckStart:
 	lda JoyTrigger1
@@ -286,8 +337,6 @@ FontPalette:
 	bne @HandPaletteLoop
 
 	jsr DrawCharacterSelectScreen
-	ClassPosition   = $1B
-	stz ClassPosition
 	jsr PlaceHandOnCharacterSelectScreen
 	jsr CopyBG3TileMapBufferToVRAM
 	jsr CopyOamMirrorToOAM
@@ -376,25 +425,7 @@ FontPalette:
 	rts
 .endproc
 
-PartySelectString: .asciiz " PARTY  SELECT "
-StatusString:      .asciiz " STATUS "
-
-ClassNameStrings:
-	.byte "Fighter "
-	.byte "Thief   "
-	.byte "Blk Belt"
-	.byte "Red Mage"
-	.byte "Wht Mage"
-	.byte "Blk Mage"
-	.byte "Knight  "
-	.byte "Ninja   "
-	.byte "Master  "
-	.byte "Red Wiz "
-	.byte "Wht Wiz "
-	.byte "Blk Wiz "
-
 .proc PlaceHandOnCharacterSelectScreen
-	ClassPosition   = $1B
 	php
 
 	sep #$20                ; A is 8-bit
@@ -424,14 +455,14 @@ ClassNameStrings:
 	jsr ClearBG3TileBuffer
 	jsr DrawKeyboard
 
-	XPosition   = $1A
-	YPosition   = $19
-	sep #$20            ; A to 8-bit
-	stz XPosition
-	stz YPosition
-
 	rep #$20            ; A to 16-bit
 	sep #$10            ; X,Y to 8-bit
+
+	ldx #$00
+	stx XPosition
+	stx YPosition
+	stx InputPosition
+
 @InputLoop:
 	jsr PlaceHandOnKeyboard
 	wai
@@ -440,7 +471,11 @@ ClassNameStrings:
 	lda JoyTrigger1
 	and #BUTTON_A
 	beq @CheckStart
-	bra @Type
+	ldx InputPosition
+	cpx #$0008
+	beq @Done
+	jsr TypeCharacter
+	bra @InputLoop
 @CheckStart:
 	lda JoyTrigger1
 	and #BUTTON_START
@@ -492,12 +527,51 @@ ClassNameStrings:
 	stx YPosition
 	bra @InputLoop
 
-@Type:
-	bra @InputLoop
-
 @Done:
 	jsr ClearBG3TileBuffer
 	jsr DrawCharacterSelectScreen
+
+	plp
+	rts
+.endproc
+
+.proc TypeCharacter
+	php
+	A8
+	lda YPosition
+	tay
+	lda XPosition
+	clc
+@RowLoop:
+	dey
+	bmi :+
+	adc #$0d
+	bra @RowLoop
+:
+	asl                      ; Double the index because there are spaces between the keys
+	tax
+	lda AMString, X          ; read one character from the keyboard
+	pha
+	lda PartyPosition
+	asl
+	asl
+	asl
+	adc InputPosition        ; store the character at the input position + party*8
+	tax
+	pla
+	sta CharacterNames, X
+	inc InputPosition
+
+	AXY16
+	lda PartyPosition
+	and #$00ff
+	asl
+	asl
+	asl
+	adc #CharacterNames
+	pha
+	CALL DrawFixedText, 8, 10, 3 ; omit the first parameter because we already pushed it
+	pla
 
 	plp
 	rts
@@ -521,17 +595,7 @@ ClassNameStrings:
 	rts
 .endproc
 
-.feature string_escapes
-AMString:  .asciiz "A B C D E F G H I J K L M"
-NZString:  .asciiz "N O P Q R S T U V W X Y Z"
-amString:  .asciiz "a b c d e f g h i j k l m"
-nzString:  .asciiz "n o p q r s t u v w x y z"
-NumString: .asciiz "1 2 3 4 5 6 7 8 9 0 - + /"
-SymString: .byte   "! ? . , % ; : ", $5f, " [ ] ' \"  ", $00 ; $5f is the ellipsis
-
 .proc PlaceHandOnKeyboard
-	XPosition   = $1A
-	YPosition   = $19
 	php
 
 	sep #$20                ; A is 8-bit

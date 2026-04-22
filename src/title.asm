@@ -195,8 +195,6 @@ YPosition       = $18
 InputPosition   = $17
 
 .proc DoCharacterSelect
-	jsr InitializeCharacterSelect
-
 	AXY8
 	stz ClassPosition
 	stz PartyPosition
@@ -206,6 +204,14 @@ InputPosition   = $17
 	sta CharacterNames, X
 	dex
 	bpl @CharacterNameLoop
+	lda #$ff
+	ldx #$03
+@ClassSelectionLoop:
+	sta ClassSelections, X
+	dex
+	bpl @ClassSelectionLoop
+
+	jsr InitializeCharacterSelect
 
 	A16
 @InputLoop:
@@ -219,6 +225,8 @@ InputPosition   = $17
 	ldx PartyPosition
 	cpx #$04
 	beq @Done
+	ldy ClassPosition
+	sty ClassSelections, X
 	jsr DoNameInput
 	ldx PartyPosition
 	inx
@@ -272,8 +280,9 @@ InputPosition   = $17
 ; BG2SC   = $53
 ; BG3SC   = $38
 
-	sep #$20                ; A to 8-bit
-	rep #$10                  ; X,Y to 16-bit
+	php
+	A8
+	XY16
 
 	lda #GAME_MODE_DUNGEON  ; character select uses mode 1, like the subscreen or a town shop
 	sta GameMode
@@ -347,13 +356,14 @@ InputPosition   = $17
 	lda #$81
 	sta NMITIMEN            ; enable NMI, turn on automatic joypad polling
 
+	plp
 	rts
 .endproc
 
 .proc DrawCharacterSelectScreen
 	php
-	sep #$20          ; A 8-bit
-	rep #$10                          ; X,Y to 16-bit
+	A8
+	XY16
 	CALL DrawWindow,  6,  1, 24,  6
 	CALL DrawWindow,  1,  8, 13, 24
 	CALL DrawWindow, 15,  8, 30, 24
@@ -400,7 +410,7 @@ InputPosition   = $17
 	tya
 	asl                   ; bits 1-3 are the palette, equal to c
 	ora #$10              ; priority
-	cpy #$04
+	cpy #$0004
 	bmi :+
 	ora #$01              ; set the overflow bit of the tile index if c >= 4
 :
@@ -416,12 +426,134 @@ InputPosition   = $17
 	cpy #$0006
 	bne @ClassLoop
 
-	stz OamMirror + $200  ; set the high bit of x to 0 for these 12 sprites
+	ldy #$0000
+@PartyLoop:
+	lda ClassSelections, Y
+	cmp #$ff
+	beq @NoClass          ; skip characters that aren't selected yet
+
+	jsr DrawCharacterAndClassNames
+
+	lda #$10
+	sta OamMirror, X      ; sprite 1 x
+	sta OamMirror + 4, X  ; sprite 2 x
+	inx
+	tya
+	asl
+	asl
+	asl
+	asl
+	asl                   ; p*32
+	adc #$46              ; p*32 + 70
+	sta OamMirror, X      ; sprite 1 y
+	adc #$10
+	sta OamMirror + 4, X  ; sprite 2 y
+	inx
+	lda ClassSelections, Y
+	asl
+	asl
+	asl
+	asl
+	asl
+	asl                   ; c*64 is the sprite tile index
+	sta OamMirror, X      ; sprite 1 tile
+	clc
+	adc #$20
+	sta OamMirror + 4, X  ; sprite 2 tile
+	inx
+	lda ClassSelections, Y
+	asl                   ; bits 1-3 are the palette, equal to c
+	ora #$10              ; priority
+	sta OamMirror, X      ; sprite 1 properties
+	sta OamMirror + 4, X  ; sprite 2 properties
+	lda ClassSelections, Y
+	cmp #$04
+	bmi :+
+	lda OamMirror, X      ; get the properties back
+	ora #$01              ; set the overflow bit of the tile index if c >= 4
+	sta OamMirror, X
+	sta OamMirror + 4, X
+:
+	inx
+
+	inx
+	inx
+	inx
+	inx                   ; move X past sprite 2
+	iny
+	cpy #$04
+	bne @PartyLoop
+
+@NoClass:
+	stz OamMirror + $200  ; set the high bit of x to 0 for these 20 sprites
 	stz OamMirror + $201
 	stz OamMirror + $202
+	stz OamMirror + $203
+	stz OamMirror + $204
 	lda #$54
-	sta OamMirror + $203  ; and the 13th sprite
+	sta OamMirror + $205  ; and the 21st sprite
 
+	plp
+	rts
+.endproc
+
+; This function is entirely dependent on the one above.  It assumes Y is set
+; to the party index that we are drawing.
+.proc DrawCharacterAndClassNames
+	php
+	phx
+
+	A16
+	; Draw the class name.
+	phy                  ; we'll need this after drawing the text
+	lda ClassSelections, Y
+	and #$00ff
+	asl
+	asl
+	asl
+	adc #ClassNameStrings
+	pha
+	lda #$0008
+	pha
+	lda #$0005
+	pha
+	tya
+	asl
+	asl                   ; p*4
+	adc #$000b            ; p*4 + 11
+	pha
+	jsr DrawFixedText
+	pla
+	pla
+	pla
+	pla
+	ply                  ; need to restore Y
+
+	; Draw the character name.
+	tya                  ; so we can use it
+	phy                  ; and push it right back
+	asl
+	asl
+	asl
+	adc #CharacterNames
+	pha
+	lda #$0008
+	pha
+	lda #$0005
+	pha
+	tya
+	asl
+	asl
+	adc #$0009            ; p*4 + 9
+	pha
+	jsr DrawFixedText
+	pla
+	pla
+	pla
+	pla
+	ply                   ; get our index back so we can return to the loop
+
+	plx
 	plp
 	rts
 .endproc
@@ -603,7 +735,7 @@ InputPosition   = $17
 	CALL DrawFixedText, 8, 13, 5
 	pla
 
-	; Move sprites 1-12 off the screen.
+	; Move sprites 1-20 off the screen.
 	AXY8
 	ldx #$05                          ; Y coordinate of sprite 1
 	lda #$e0
@@ -613,7 +745,7 @@ InputPosition   = $17
 	inx
 	inx
 	inx
-	cpx #$35                          ; sprite 13
+	cpx #$55                          ; sprite 21
 	bne @SpriteLoop
 
 	lda ClassPosition                 ; get the class that was selected on the previous screen

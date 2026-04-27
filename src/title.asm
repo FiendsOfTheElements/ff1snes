@@ -56,7 +56,7 @@ FontPalette:
 
 	jsr LoadTitleScreenSprites
 
-	sep #$20                ; set A to 8-bit
+	A8
 
 	lda #$07                ; video mode 7
 	sta BGMODE
@@ -93,7 +93,7 @@ FontPalette:
 	bne @FadeInLoop
 	pla                     ; clear the stack
 
-	rep #$20                ; set A to 16-bit
+	A16
 	lda #%111111111         ; this will count downward, and the upper 5 bits are the fixed color
 	pha                     ; save A because we're going to get interrupted
 @InputLoop:
@@ -107,10 +107,10 @@ FontPalette:
 	lsr
 	lsr
 	lsr
-	sep #$20                ; set A to 8-bit
+	A8
 	ora #$e0                ; all three color channels
 	sta COLDATA             ; set the fixed color
-	rep #$20                ; set A back to 16-bit
+	A16
 
 	jsr GetJoypadInputs
 	lda JoyTrigger1
@@ -126,8 +126,8 @@ FontPalette:
 ; we can just bulk load the sprite configuration data from ROM.
 .proc LoadTitleScreenSprites
 	; First load the sprite graphics.
-	sep #$20                      ; A to 8-bit
-	rep #$10                      ; X,Y to 16-bit
+	A8
+	XY16
 
 	LONGCALL DMA2VRAML, BANK_TITLEGRAPHICS, TitleScreenSprites, $6000, $2800
 
@@ -143,7 +143,7 @@ FontPalette:
 	bne @PaletteLoop
 
 	; Finally, copy the sprite data into OAM.
-	rep #$20                      ; A to 16-bit
+	A16
 	ldx #$0000
 @SpriteDataLoop:
 	lda TitleScreenSpriteData, X  ; read
@@ -570,7 +570,7 @@ InputPosition   = $17
 .proc PlaceHandOnCharacterSelectScreen
 	php
 
-	sep #$20                ; A is 8-bit
+	A8
 	; Hand starts at 38, 25, 4 pixels down from the class and with a gap of 2 pixels to the right
 	lda ClassPosition
 	asl
@@ -598,8 +598,8 @@ InputPosition   = $17
 	jsr DrawKeyboard
 	jsr DrawCharacterName
 
-	rep #$20            ; A to 16-bit
-	sep #$10            ; X,Y to 8-bit
+	A16
+	XY8
 
 	ldx #$00
 	stx XPosition
@@ -832,7 +832,7 @@ InputPosition   = $17
 .proc PlaceHandOnKeyboard
 	php
 
-	sep #$20                ; A is 8-bit
+	A8
 	; Hand starts at 6, 78, pointing at the A
 	lda XPosition
 	asl
@@ -880,7 +880,7 @@ InputPosition   = $17
 	tsc
 	tcd
 	php
-	rep #$30                      ; set A,X,Y to 16-bit
+	AXY16
 	lda y1                        ; calculate offset into BG3 tilemap
 	asl
 	asl
@@ -997,7 +997,7 @@ InputPosition   = $17
 	tsc
 	tcd
 	php
-	rep #$30                ; A,X,Y to 16-bit
+	AXY16
 
 	lda yCoord              ; formula is 2 * (y*32 + x), 2 bytes per tile, 32 tiles across
 	asl
@@ -1036,7 +1036,7 @@ InputPosition   = $17
 	tsc
 	tcd
 	php
-	rep #$30                ; A,X,Y to 16-bit
+	AXY16
 
 	lda yCoord              ; formula is 2 * (y*32 + x), 2 bytes per tile, 32 tiles across
 	asl
@@ -1068,7 +1068,7 @@ InputPosition   = $17
 .proc ClearBG3TileBuffer
 	php
 
-	rep #$30                      ; A,X,Y to 16-bit
+	AXY16
 	; Zero out the BG3 tilemap buffer.
 	lda #$0001
 	sta BG3TileMapBufferDirty     ; 2-byte write to a 1-byte variable, but the second byte will get overwritten immediately

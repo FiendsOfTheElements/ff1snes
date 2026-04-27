@@ -73,7 +73,7 @@ SHIP_INIT        = $A998    ; don't forget to move this to Pravoka
 AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 
 .proc LoadOverworld
-	sep #$20                ; set A to 8-bit
+	A8
 	lda #GAME_MODE_OVERWORLD
 	sta GameMode
 
@@ -87,7 +87,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	lda #Vehicle_Foot       ; be on foot
 	sta CURR_VEHICLE
 	stz CURR_CLASS          ; be fighter
-	rep #$30                ; A,X,Y to 16-bit
+	AXY16
 	ldx #START_POSITION_X   ; set the initial scroll
 	stx MAPPOSX
 	ldy #START_POSITION_Y
@@ -112,7 +112,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 
 	jsr SetupVideo
 
-	sep #$20                ; A to 8-bit
+	A8
 	lda #$81
 	sta NMITIMEN            ; enable NMI, turn on automatic joypad polling
 
@@ -122,8 +122,8 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 .proc LoadOverworldCharacters
 	; There are 256 8x8 characters that make up the graphics for the overworld.
 	; All we need to do is shove them into VRAM starting at address 0.
-	sep #$20                    ; A to 8-bit
-	rep #$10                    ; X,Y to 16-bit
+	A8
+	XY16
 	stz MDMAEN                  ; reset DMA
 	lda #$80                    ; VRAM increment on write to VMDATAH
 	sta VMAINC
@@ -144,10 +144,10 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 .endproc
 
 .proc LoadOverworldPalette
-	rep #$20        ; set A to 16-bit so we can
+	A16
 	lda #$0000      ; clear the high byte
-	sep #$20        ; set A to 8-bit
-	rep #$10        ; set X,Y to 16-bit
+	A8
+	XY16
 	lda #BANK_MAIN  ; set data bank to main
 	pha
 	plb
@@ -170,13 +170,13 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	; "slot" of the actual row mod 64, so as you scroll up and down, the rows behind you
 	; get cycled out for rows in front of you.
 	TempMaxY = $00              ; Keep track of the maximum Y position
-	rep #$20                    ; A to 16-bit
+	A16
 	lda MAPPOSY				    ; get the player's Y position
 	lsr                         ; divide by 16 to get the tile position
 	lsr
 	lsr
 	lsr
-	sep #$30                    ; A,X,Y to 8-bit.  We'll wrap around the world correctly.
+	AXY8
 	clc
 	adc #$1f                    ; max Y position is 31 rows higher (farther down)
 	sta TempMaxY
@@ -209,11 +209,11 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	TempSrc = $02              ; Keep track of where we're reading from
 	phy                        ; Save Y which will definitely be overwritten by decoding
 	php                        ; Save the bitness of the registers
-	sep #$20                   ; Set A to 8-bit
+	A8
 	lda #BANK_OVERWORLD        ; Set data bank to overworld source
 	pha
 	plb
-	rep #$30                   ; Set A,X,Y to 16-bit
+	AXY16
 	phy                        ; remember the actual row
 	tya
 	and #$003f                 ; row mod 64
@@ -226,7 +226,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	tay                        ; Y now points to the compressed row data
 
 @Loop:
-	sep #$20                   ; set A to 8-bit
+	A8
 	lda CompressedOverworld, Y
 	iny
 	cmp #$ff                   ; are we done?
@@ -276,20 +276,20 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	TempRowPos        = $08
 	phy
 	php
-	sep #$20                   ; A 8-bit
+	A8
 	lda #BANK_MAIN             ; set data bank for the tilemaps
 	pha
 	plb
-	rep #$20                   ; A 16-bit
+	A16
 	tya
 	and #$3f                   ; row mod 64
-	sep #$20                   ; A 8-bit
+	A8
 	pha                        ; save the row index
 	lda #$01                   ; 1 means the dirty buffer contains a row
 	sta TileMapBufferDirty
 	pla                        ; restore the row index
 	sta TileMapBufferIndex
-	rep #$20                   ; A 16-bit
+	A16
 	xba                        ; multiply by the row length (256)
 	sta TempRowPointer
 	lda MAPPOSX                ; get the X position, divide by 16 to get the tile position
@@ -304,9 +304,9 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	adc TempRowPointer         ; add the row pointer, now we have the index of the leftmost tile
 	sta TempBufferPointer      ; save the buffer pointer
 	stz TempCounter            ; loop variable
-	rep #$10                   ; X,Y to 16-bit
+	XY16
 @Loop:
-	rep #$20                         ; A to 16-bit
+	A16
 	lda TempBufferPointer            ; We need to calculate the tile index in the decompressed map.
 	and #$00ff                       ; just the x-coordinate
 	adc TempCounter                  ; This is from the start position, plus our loop counter,
@@ -320,7 +320,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	lda OverworldMapL, X             ; get the tile
 	and #$00ff                       ; just one byte
 	tay                              ; put it in Y
-	sep #$20                         ; A to 8-bit
+	A8
 	lda OverworldTilemaps, Y         ; get the upper-left character
 	pha                              ; save it
 	lda OverworldTilemaps + $80, Y   ; get the upper-right character
@@ -329,12 +329,12 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	pha                              ; save it
 	lda OverworldTilemaps + $180, Y  ; get the lower-right character
 	pha                              ; save it
-	rep #$20                         ; A back to 16-bit
+	A16
 	lda TempRowPos                   ; what's our position in the row
 	and #$3f                         ; mod 64
 	asl                              ; times 2, this is our index into the buffer
 	tay                              ; put it in Y
-	sep #$20                         ; A back to 8-bit
+	A8
 	pla                              ; grab the lower-right character
 	sta TileMapBuffer + $81, Y       ; store it to the buffer
 	pla                              ; grab the lower-left character
@@ -360,13 +360,13 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	; straight into VRAM, 256 bytes.
 	; The Y register holds the map row to copy from.
 	php
-	rep #$20                    ; A to 16-bit
+	A16
 	tya
 	and #$003f                  ; row mod 64
 	xba                         ; times 256
 	sta VMADDL                  ; is the VRAM address
-	rep #$10                    ; X,Y to 16-bit
-	sep #$20                    ; A to 8-bit
+	XY16
+	A8
 	stz VMAINC                  ; VRAM increment on write to VMDATAL
 	stz MDMAEN                  ; reset DMA
 
@@ -395,17 +395,17 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	TempBufferPointerRight = $06
 	TempColPos             = $08
 	php
-	sep #$20                   ; A 8-bit
+	A8
 	lda #BANK_MAIN             ; set data bank for the tilemaps
 	pha
 	plb
-	rep #$20                   ; A 16-bit
+	A16
 	lda #TileMapBuffer
 	sta TempBufferPointerLeft  ; initialize the buffer pointer
 	clc
 	adc #$80                   ; initialize the other buffer pointer
 	sta TempBufferPointerRight
-	sep #$20                   ; A 8-bit
+	A8
 	txa
 	sta TempColPos             ; save this
 	and #$3f                   ; mod 64 will be the column index into VRAM
@@ -413,10 +413,10 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	lda #$02                   ; 2 means the buffer has a column
 	sta TileMapBufferDirty
 
-	rep #$10                   ; X,Y to 16-bit
+	XY16
 	ldy #$00
 @Loop:
-	rep #$20                   ; A 16-bit
+	A16
 	tya                        ; the row index
 	xba                        ; times 256
 	adc TempColPos             ; plus the column index
@@ -426,7 +426,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	and #$00ff                 ; just one byte
 	tax                        ; put it in X
 
-	sep #$20                         ; A 8-bit
+	A8
 	lda OverworldTilemaps, X         ; get the upper-left character
 	sta (TempBufferPointerLeft)      ; save it
 	inc TempBufferPointerLeft
@@ -453,15 +453,15 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	; need to be two DMA transfers, one for each column of 8x8 characters.
 	; The X register holds the map column to copy from.
 	php
-	rep #$20                    ; A to 16-bit
+	A16
 	txa
 	and #$003f                  ; column mod 64
 	asl                         ; times 2
 	sta VMADDL                  ; is the VRAM address for the left column
 	pha                         ; save this for later
 
-	rep #$10                    ; X,Y to 16-bit
-	sep #$20                    ; A to 8-bit
+	XY16
+	A8
 	lda #$02
 	sta VMAINC                  ; increment VRAM address by $80 (one row)
 	stz MDMAEN                  ; reset DMA
@@ -478,11 +478,11 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	sta MDMAEN                  ; enable
 
 	; Copy the right column
-	rep #$20                    ; A to 16-bit
+	A16
 	pla                         ; fetch the VRAM address again
 	adc #$01                    ; add 2 bytes to move over one column
 	sta VMADDL                  ; this is the VRAM address for the right column
-	sep #$20                    ; A to 8-bit
+	A8
 	stz MDMAEN                  ; reset DMA
 ;   I think this can all be skipped because it's already configured above
 ;	lda #<VMDATAL               ; write to VRAM low register (Mode 7 tilemaps)
@@ -506,8 +506,8 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	; Check if the tilemap buffer is dirty, then determine whether to
 	; copy a row or column, and do so.
 	php
-	sep #$20                    ; A 8-bit
-	rep #$10                    ; X,Y 16-bit
+	A8
+	XY16
 	lda TileMapBufferDirty
 	cmp #$01
 	bne @CheckColumn
@@ -532,16 +532,16 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	; There are a 12 character classes and 3 vehicles, each with 6 frames of animation.
 	; Each of these is a 16x16 sprite taking up 128 bytes.  All told, 12 KB of data
 	; (with room at the end for one more set of 6).
-	rep #$10                      ; X,Y to 16-bit
+	XY16
 	LONGCALL DMA2VRAML, BANK_OWGRAPHICS, OverworldSprites & $ffff, $6000, $4000
 	rts
 .endproc
 
 .proc LoadOverworldSpritePalettes
-	rep #$20        ; set A to 16-bit so we can
+	A16
 	lda #$0000      ; clear the high byte
-	sep #$20        ; set A to 8-bit
-	rep #$10        ; set X,Y to 16-bit
+	A8
+	XY16
 	lda #BANK_MAIN  ; set data bank to main
 	pha
 	plb
@@ -570,7 +570,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 .endproc
 
 .proc SetupVideo
-	sep #$20                ; set A to 8-bit
+	A8
 
 	lda #$07
 	sta BGMODE
@@ -591,19 +591,19 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 .endproc
 
 .proc DoOverworldMovement
-	rep #$20                ; set A to 16-bit
-	sep #$10                ; set X,Y to 8-bit
+	A16
+	XY8
 
 @CheckRButton:
 	lda JoyTrigger1         ; see if R was just pressed
 	and #BUTTON_R
 	beq @CheckMoving
-	sep #$20                ; A briefly to 8-bit
+	A8
 	lda CURR_CLASS
 	inc
 	and #$03
 	sta CURR_CLASS
-	rep #$20                ; back to 16-bit
+	A16
 
 @CheckMoving:
 	ldx MOVEDIR             ; see if we're already moving
@@ -725,8 +725,8 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 .proc GetTileMoveCoords
 	; Loads the coordinates of the map tile we are moving toward into A as $YYXX.
 	php
-	sep #$30          ; X,Y are 8-bit
-	rep #$20          ; A is 16-bit
+	AXY8
+	A16
 	lda CHARACTER_POS ; get the position we're moving from
 	ldx FACEDIR
 	cpx #DirUp        ; if we're going up
@@ -773,7 +773,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	TempTileProp = $0A
 	phx
 	php
-	sep #$10                  ; X,Y 8-bit
+	XY8
 	ldy CURR_VEHICLE          ; Get the vehicle we're in
 	cpy #Vehicle_Airship      ; Is it the airship?
 	bne @NotAirship
@@ -781,7 +781,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 @NotAirship:                  ; Otherwise, we need to know what tile we're moving to.
 	jsr GetTileProperties
 	sta TempTileProp          ; save them
-	sep #$10                  ; X,Y 8-bit
+	XY8
 	cpy #Vehicle_Ship         ; Y still has the vehicle, is it the ship?
 	bne @CanMoveFoot
 @CanMoveShip:
@@ -840,7 +840,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	; For the map tile with coords $YYAA in the A register,
 	; return the tile properties in the A register.
 	php
-	rep #$30                  ; A,X,Y 16-bit
+	AXY16
 	and #$3fff                ; Y-coordinate mod 64
 	tax
 	lda OverworldMapL, X      ; get the tile
@@ -901,7 +901,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	TempX = $00
 	TempY = $02
 	TempTileProp = $04
-	rep #$20                  ; A to 16-bit
+	A16
 	lda MAPPOSX               ; we'll calculate the map's X coordinate
 	lsr                       ; by dividing the pixel position by 16
 	lsr
@@ -918,13 +918,13 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	ora TempX                 ; and the X coordinate in the low byte
 	sta CHARACTER_POS         ; store the character's position as $YYXX for reference
 
-	sep #$20                  ; set A to 8-bit
+	A8
 	lda FACEDIR
 @CheckUp:
 .a8
 	cmp #DirUp
 	bne @CheckDown
-	rep #$20                  ; A to 16-bit
+	A16
 	lda TempY
 	sec
 	sbc #$21                  ; 33 rows up
@@ -938,7 +938,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 .a8
 	cmp #DirDown
 	bne @CheckLeft
-	rep #$20                  ; A to 16-bit
+	A16
 	lda TempY
 	clc
 	adc #$1e                  ; 30 rows down
@@ -954,7 +954,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 .a8
 	cmp #DirLeft
 	bne @CheckRight
-	rep #$20                  ; A to 16-bit
+	A16
 	lda TempX
 	sec
 	sbc #$1f                  ; 31 columns left
@@ -966,7 +966,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 .a8
 	cmp #DirRight             ; theoretically, we don't need this
 	bne @CheckEvent            ; or this
-	rep #$20                  ; A to 16-bit
+	A16
 	lda TempX
 	clc
 	adc #$20                  ; 32 columns right
@@ -977,11 +977,11 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 
 @CheckEvent:                   ; Then we check to see if we triggered an event, like entering a cave or town.
 @CheckVehicle:                 ; Make sure we're in the right vehicle
-	sep #$30                  ; A,X,Y to 8-bit
+	AXY8
 	lda CURR_VEHICLE
 	cmp #Vehicle_Airship      ; if we're in the airship, we don't need to adjust our sprite
 	beq @CheckEncounter
-	rep #$20                  ; A back to 16-bit
+	A16
 	lda CHARACTER_POS         ; we want to know about the tile we landed on
 	jsr GetTileProperties
 	sta TempTileProp
@@ -1009,7 +1009,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	Temp        = $00
 	TempPalette = $02
 	php
-	sep #$20             ; set A to 8-bit
+	A8
 	lda #$78             ; player sprite position is $78, $67
 	sta CharacterSprite
 	lda #$67
@@ -1043,7 +1043,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	lda CURR_CLASS
 	sta TempPalette      ; use the class palette
 @GetOffset:
-	rep #$20             ; A to 16-bit
+	A16
 	and #$00ff           ; we just loaded 8-bit, so mask off whatever was up there
 	asl                  ; multiply by $20
 	asl
@@ -1076,7 +1076,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	sta Temp
 @AnimationDone:
 	lda Temp                ; get the sprite
-	sep #$20                ; A to 8-bit
+	A8
 	sta CharacterSprite + 2 ; lower 8 bits of sprite tile
 	xba                     ; get the high byte back
 	ora #$10                ; set priority
@@ -1097,12 +1097,12 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	TempY       = $02
 	TempVehicle = $04
 	php
-	rep #$20          ; make A 16-bit
+	A16
 	lda #Vehicle_Airship
 	sta TempVehicle   ; Tell the next function we are asking about the airship
 	lda AIRSHIP_POS
 	jsr CalculateVehicleScreenPosition
-	sep #$20          ; make A 8-bit
+	A8
 	lda TempX
 	sta AirshipSprite
 	lda TempY
@@ -1120,12 +1120,12 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	lda #$04
 	trb AirshipSpriteH
 @Ship:
-	rep #$20          ; make A 16-bit
+	A16
 	lda #Vehicle_Ship
 	sta TempVehicle   ; Tell the next function we are asking about the ship
 	lda SHIP_POS
 	jsr CalculateVehicleScreenPosition
-	sep #$20          ; make A 8-bit
+	A8
 	lda TempX
 	sta ShipSprite
 	lda TempY
@@ -1237,7 +1237,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 .endproc
 
 .proc SetupAirshipMode7HDMA
-	rep #$20                      ; A to 16-bit
+	A16
 	ldx AIRSHIP_TRANSITION
 	beq @Quit
 	dex
@@ -1245,8 +1245,8 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	lda AirshipMode7Tables, X     ; this is a long read
 	sta DMA6ADDAL                 ; we'll read from the airship mode 7 HDMA table
 	sta DMA7ADDAL                 ; for both channels
-	sep #$20                      ; A to 8-bit
-	rep #$10                      ; X,Y to 16-bit
+	A8
+	XY16
 	stz HDMAEN                    ; reset HDMA
 	lda #<M7A                     ; write to M7A
 	sta DMA6ADDB                  ; on channel 6
@@ -1262,13 +1262,13 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	sta HDMAEN                    ; enable
 	rts
 @Quit:
-	sep #$20                      ; A 8-bit
+	A8
 	stz HDMAEN                    ; just zero this out
 	rts
 .endproc
 
 .proc SetMode7Matrix
-	sep #$20          ; set A to 8-bit
+	A8
 	lda #BANK_MAIN    ; set data bank to main (where the trig tables are)
 	pha
 	plb
@@ -1284,7 +1284,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 
 	TempX = $00
 	TempY = $02
-	rep #$20          ; set A to 16-bit
+	A16
 	lda MAPPOSX
 	sec
 	sbc #$80
@@ -1294,7 +1294,7 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	sbc #$70
 	sta TempY
 
-	sep #$20          ; set A to 8-bit
+	A8
 	lda TempX
 	sta BG1HOFS
 	lda TempX + 1
@@ -1308,11 +1308,11 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	TempCos    = $02
 	TempSin    = $04
 	TempNegSin = $06
-	rep #$20          ; set A to 16-bit
+	A16
 	lda MAPANGLE
 	jsr Cosine        ; get the cosine
 	sta TempCos
-	sep #$20          ; set A to 8-bit
+	A8
     lda TempCos       ; multiply -- this will be signed, fixed-point where A is IIII IIII.FFFF FFFF
 	sta M7A           ; and B is II.FF FFFF
 	lda TempCos + 1
@@ -1337,11 +1337,11 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	rol
 	sta TempCos + 1
 
-	rep #$20          ; set A to 16-bit
+	A16
 	lda MAPANGLE
 	jsr Sine          ; get the sine
 	sta TempSin
-	sep #$20          ; set A to 8-bit
+	A8
     lda TempSin       ; multiply -- this will be signed, fixed-point where A is IIII IIII.FFFF FFFF
 	sta M7A           ; and B is II.FF FFFF
 	lda TempSin + 1
@@ -1366,14 +1366,14 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	rol
 	sta TempSin + 1
 
-	rep #$20          ; set A to 16-bit
+	A16
 	lda TempSin       ; get the negative sine
 	eor #$FFFF
 	inc
 	sta TempNegSin
 
 	; Now we've done the trig calculations, set up the matrix.
-	rep #$10          ; set X and Y to 16-bit
+	XY16
 	sep #$20
 	lda TempCos
 	sta M7A

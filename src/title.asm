@@ -198,6 +198,7 @@ InputPosition   = $17
 	AXY8
 	stz ClassPosition
 	stz PartyPosition
+	stz InputPosition
 	lda #$20                  ; space
 	ldx #$1f
 @CharacterNameLoop:
@@ -221,18 +222,29 @@ InputPosition   = $17
 @CheckA:
 	lda JoyTrigger1
 	and #BUTTON_A
-	beq @CheckStart
+	beq @CheckB
 	ldx PartyPosition
 	cpx #$04
 	beq @Done
 	ldy ClassPosition
 	sty ClassSelections, X
+	ldx #$00
+	stx InputPosition
 	jsr DoNameInput
 	bra @InputLoop
-@CheckStart:
+@CheckB:
 	lda JoyTrigger1
-	and #BUTTON_START
-	bne @Done
+	and #BUTTON_B
+	beq @CheckLeft
+	ldx PartyPosition
+	cpx #$00
+	beq @InputLoop
+	dex
+	stx PartyPosition
+	ldx #$08
+	stx InputPosition
+	jsr DoNameInput
+	bra @InputLoop
 @CheckLeft:
 	lda JoyTrigger1
 	and #BUTTON_LEFT
@@ -584,6 +596,7 @@ InputPosition   = $17
 
 	jsr ClearBG3TileBuffer
 	jsr DrawKeyboard
+	jsr DrawCharacterName
 
 	rep #$20            ; A to 16-bit
 	sep #$10            ; X,Y to 8-bit
@@ -591,7 +604,6 @@ InputPosition   = $17
 	ldx #$00
 	stx XPosition
 	stx YPosition
-	stx InputPosition
 
 @InputLoop:
 	jsr PlaceHandOnKeyboard
@@ -734,7 +746,15 @@ InputPosition   = $17
 	pla
 	sta CharacterNames, X
 
+	jsr DrawCharacterName
+
+	rts
+.endproc
+
+.proc DrawCharacterName
+	php
 	AXY16
+
 	lda PartyPosition
 	and #$00ff
 	asl
@@ -745,6 +765,7 @@ InputPosition   = $17
 	CALL DrawFixedText, 8, 13, 3 ; omit the first parameter because we already pushed it
 	pla
 
+	plp
 	rts
 .endproc
 
@@ -763,7 +784,10 @@ InputPosition   = $17
 	CALL DrawText, NumString, 3, 18
 	CALL DrawText, SymString, 3, 20
 
-	lda ClassPosition
+	lda PartyPosition
+	and #$00ff
+	tax
+	lda ClassSelections, X
 	and #$00ff
 	asl
 	asl
@@ -786,7 +810,8 @@ InputPosition   = $17
 	cpx #$55                          ; sprite 21
 	bne @SpriteLoop
 
-	lda ClassPosition                 ; get the class that was selected on the previous screen
+	ldy PartyPosition
+	lda ClassSelections, Y            ; get the class for the current character
 	asl
 	asl                               ; 4 bytes per sprite, and
 	asl                               ; 2 sprites per class (top and bottom)

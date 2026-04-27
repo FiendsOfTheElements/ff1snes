@@ -228,9 +228,6 @@ InputPosition   = $17
 	ldy ClassPosition
 	sty ClassSelections, X
 	jsr DoNameInput
-	ldx PartyPosition
-	inx
-	stx PartyPosition
 	bra @InputLoop
 @CheckStart:
 	lda JoyTrigger1
@@ -603,16 +600,44 @@ InputPosition   = $17
 @CheckA:
 	lda JoyTrigger1
 	and #BUTTON_A
-	beq @CheckStart
+	beq @CheckB
 	ldx InputPosition
-	cpx #$0008
+	cpx #$08
 	beq @Done
 	jsr TypeCharacter
 	bra @InputLoop
-@CheckStart:
+@CheckB:
 	lda JoyTrigger1
-	and #BUTTON_START
-	bne @Done
+	and #BUTTON_B
+	beq @CheckDPad
+	ldx InputPosition
+	cpx #00
+	bne :+
+	ldx PartyPosition
+	ldy #$ff
+	sty ClassSelections, X
+	bra @Back
+:
+	jsr Backspace
+	bra @InputLoop
+@CheckDPad:
+	jsr DoKeyboardMovement
+	bra @InputLoop
+
+@Done:
+	ldx PartyPosition
+	inx
+	stx PartyPosition
+
+@Back:
+	jsr ClearBG3TileBuffer
+	jsr DrawCharacterSelectScreen
+
+	plp
+	rts
+.endproc
+
+.proc DoKeyboardMovement
 @CheckLeft:
 	lda JoyTrigger1
 	and #BUTTON_LEFT
@@ -623,7 +648,7 @@ InputPosition   = $17
 	ldx #$0c
 :
 	stx XPosition
-	bra @InputLoop
+	rts
 @CheckRight:
 	lda JoyTrigger1
 	and #BUTTON_RIGHT
@@ -635,7 +660,7 @@ InputPosition   = $17
 	ldx #$00
 :
 	stx XPosition
-	bra @InputLoop
+	rts
 @CheckUp:
 	lda JoyTrigger1
 	and #BUTTON_UP
@@ -646,11 +671,11 @@ InputPosition   = $17
 	ldx #$05
 :
 	stx YPosition
-	bra @InputLoop
+	rts
 @CheckDown:
 	lda JoyTrigger1
 	and #BUTTON_DOWN
-	beq @InputLoop
+	beq @End
 	ldx YPosition
 	inx
 	cpx #$06
@@ -658,13 +683,7 @@ InputPosition   = $17
 	ldx #$00
 :
 	stx YPosition
-	bra @InputLoop
-
-@Done:
-	jsr ClearBG3TileBuffer
-	jsr DrawCharacterSelectScreen
-
-	plp
+@End:
 	rts
 .endproc
 
@@ -684,6 +703,27 @@ InputPosition   = $17
 	asl                      ; Double the index because there are spaces between the keys
 	tax
 	lda AMString, X          ; read one character from the keyboard
+	jsr WriteCharacter
+
+	A8
+	inc InputPosition
+
+	plp
+	rts
+.endproc
+
+.proc Backspace
+	php
+	A8
+	dec InputPosition
+	lda #$20 ; space
+	jsr WriteCharacter
+
+	plp
+	rts
+.endproc
+
+.proc WriteCharacter
 	pha
 	lda PartyPosition
 	asl
@@ -693,7 +733,6 @@ InputPosition   = $17
 	tax
 	pla
 	sta CharacterNames, X
-	inc InputPosition
 
 	AXY16
 	lda PartyPosition
@@ -706,13 +745,12 @@ InputPosition   = $17
 	CALL DrawFixedText, 8, 13, 3 ; omit the first parameter because we already pushed it
 	pla
 
-	plp
 	rts
 .endproc
 
 .proc DrawKeyboard
 	php
-	XY16
+	AXY16
 
 	CALL DrawWindow, 9, 2, 21, 6
 	CALL DrawWindow, 1, 8, 29, 22

@@ -1,32 +1,33 @@
-; COLOR
-;
-; Given three integers ranging from 0 to 31, outputs a 16-bit value representing
-; the equivalent SNES color value.
-.macro COLOR r, g, b
-    .word (b << 10) + (g << 5) + r
-.endmacro
-
-BANK_MAIN      = $00
-BANK_AIRSHIPM7 = $01
-BANK_OVERWORLD = $02
-BANK_OWSPRITE  = $03
+BANK_MAIN          = $00
+BANK_AIRSHIPM7     = $01
+BANK_OVERWORLD     = $02
+BANK_OWGRAPHICS    = $03
+BANK_TITLEGRAPHICS = $04
+BANK_BATTLESPRITES = $05
 
 ; WRAM locations CAN overlap, but only if the bits of code using the overlap are okay with it!
 
 ; Low WRAM locations
 ; We don't have to define EVERY temp variable here.  It is expected that procs will define their own
 ; temp variables, and that module code is kept reasonably close together so they can coordinate.
+GameMode                 = $FF ; For now, we use overworld for the title screen (because it's mode 7)
+GAME_MODE_OVERWORLD      = $01 ; and dungeon for anything else (because it's mode 1).  Depending on
+GAME_MODE_DUNGEON        = $02 ; what the game needs, we can add more modes.
+
 JoyPad1          = $0300     ; data read from joypad 1
 JoyTrigger1      = $0302     ; trigger read from joypad 1
 JoyHeld1         = $0304     ; held buttons read from joypad 1
 
 OamMirror        = $05E0     ; to $07FF, this gets DMA'd to OAM every frame
 
-TileMapBuffer      = $1800   ; this is a buffer from which a row or column of tiles will be DMA'd into VRAM, 256 bytes
-TileMapBufferDirty = $1900   ; this stores a 1 if the tilemap buffer contains a row, a 2 if it stores a column, and a 0 otherwise
-TileMapBufferIndex = $1901   ; this stores the index of the row or column contained in the buffer, 0 to 63
+TileMapBuffer      = $1D00   ; this is a buffer from which a row or column of tiles will be DMA'd into VRAM, 256 bytes
+TileMapBufferDirty = $1CFF   ; this stores a 1 if the tilemap buffer contains a row, a 2 if it stores a column, and a 0 otherwise
+TileMapBufferIndex = $1CFE   ; this stores the index of the row or column contained in the buffer, 0 to 63
 
 StackBase        = $1E00     ; expected to be no more than 512 bytes, grows from $1FFF downward
+
+BG3TileMapBuffer      = $1400 ; $800 bytes, the BG3 tilemap gets stored here so we can draw windows and text on it
+BG3TileMapBufferDirty = $13FF ; stores a 1 if BG3 needs to be DMA'd from this buffer
 
 ; High WRAM locations
 OverworldMapBank = $7E

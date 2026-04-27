@@ -9,7 +9,7 @@
 	.byte $00 ; Use ROMINFOEX
 	.byte $20 ; LoROM, SlowROM
 	.byte $02 ; Battery SRAM, no co-processor
-	.byte $07 ; 128K ROM (we'll increase this later)
+	.byte $08 ; 256K ROM (we'll increase this later)
 	.byte $05 ; 32K SRAM (can increase if needed)
 	.byte $01 ; North America (there doesn't seem to be a standard for "any region")
 	.byte $33 ; Developer ID ($33 means use ROMINFOEX)
@@ -37,6 +37,7 @@
 .import GetJoypadInputs
 
 .import LoadTitleScreenAndWaitForInput
+.import DoCharacterSelect
 
 .import LoadOverworld
 .import DoOverworldMovement
@@ -46,8 +47,13 @@
 .import SetMode7Matrix
 .import SetupAirshipMode7HDMA
 
+.export CopyOamMirrorToOAM
+.export CopyBG3TileMapBufferToVRAM
+.export DMA2VRAML : far
+
 .include "registers.inc"
 .include "defines.inc"
+.include "macros.inc"
 
 .segment "CODE"
 
@@ -64,6 +70,10 @@
 	jsr InitializeOam
 	jsr CopyOamMirrorToOAM
 	jsr LoadTitleScreenAndWaitForInput
+
+	jsr InitializeOam
+	jsr CopyOamMirrorToOAM
+	jsr DoCharacterSelect
 
 	jsr InitializeOam
 	jsr LoadOverworld
@@ -116,10 +126,17 @@
 	lda RDNMI               ; read NMI status, acknowledge NMI
 
 	jsr CopyOamMirrorToOAM
+
+	lda GameMode
+	cmp #GAME_MODE_OVERWORLD
+	bne :+
 	jsr CopyTileMapBufferToVRAM
 	jsr SetMode7Matrix
 	jsr SetupAirshipMode7HDMA
-
+	bra :++
+:
+	jsr CopyBG3TileMapBufferToVRAM
+:
 	plp
 	rti
 .endproc
@@ -139,4 +156,52 @@
 	lda #$80                    ; enable DMA7
 	sta MDMAEN
 	rts
+.endproc
+
+.proc CopyBG3TileMapBufferToVRAM
+	php
+	rep #$10             ; set X,Y to 16-bit
+	LONGCALL DMA2VRAML, 0, BG3TileMapBuffer, $3800, $0800
+	plp
+	rts
+.endproc
+
+.proc DMA2VRAML
+; Copies data to VRAM, arguments on the stack.  This is the "normal" way
+; to write to VRAM, doing a linear bulk copy.  Works for character graphics,
+; tilemaps, and sprite graphics, but not for Mode 7 graphics or tilemaps.
+	Bank   = $0C        ; Source bank (value only needs to be one byte)
+	Source = $0A        ; Source address from memory
+	Dest   = $08        ; Destination word address in VRAM
+	Size   = $06        ; Size of data to transfer (bytes)
+
+	phd
+	tsc
+	tcd
+	php
+	sep #$20            ; set A to 8-bit
+	rep #$10            ; set X,Y to 16-bit
+
+	lda #$80            ; VRAM increment on write to VMDATAH
+	sta VMAINC
+	lda #<VMDATAL       ; write to VRAM
+	sta DMA7ADDB
+	lda #$01            ; configuration A->B, inc A address, write 2 bytes at a time to VMDATAL/H
+	sta DMA7PARAM
+
+	lda Bank
+	sta DMA7ADDAH
+	ldx Source
+	stx DMA7ADDAL
+	ldx Dest
+	stx VMADDL          ; destination address
+	ldx Size
+	stx DMA7AMTL
+
+	lda #$80            ; enable DMA7
+	sta MDMAEN
+
+	plp
+	pld
+	rtl
 .endproc

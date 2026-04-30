@@ -5,6 +5,8 @@ BANK_OWGRAPHICS    = $03
 BANK_TITLEGRAPHICS = $04
 BANK_BATTLESPRITES = $05
 
+BANK_SRAM          = $F0
+
 ; WRAM locations CAN overlap, but only if the bits of code using the overlap are okay with it!
 
 ; Low WRAM locations

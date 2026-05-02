@@ -1,11 +1,4 @@
-BANK_MAIN          = $00
-BANK_AIRSHIPM7     = $01
-BANK_OVERWORLD     = $02
-BANK_OWGRAPHICS    = $03
-BANK_TITLEGRAPHICS = $04
-BANK_BATTLESPRITES = $05
-
-BANK_SRAM          = $F0
+.include "banks.inc"
 
 ; WRAM locations CAN overlap, but only if the bits of code using the overlap are okay with it!
 

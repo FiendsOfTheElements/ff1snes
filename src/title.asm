@@ -861,32 +861,28 @@ InputPosition   = $17
 
 .proc InitializeParty
 	php
-	phb
-
-	A8
-	lda #BANK_SRAM
-	pha
-	plb
 
 	AXY16
 	ldx #$0000
+	lda #$0000
 @ZeroLoop:
-	stz 0, X               ; zero-out slot 0 of SRAM
+	sta f:BANK_SRAM << 16, X      ; zero-out slot 0 of SRAM
 	inx
 	inx
-	cpx game_state_size
+	cpx #game_state_size
 	bne @ZeroLoop
 
 	; start initializing game state
 	lda #$a998
-	sta ship_pos
+	sta ship_pos_far
 	lda #$a79a
-	sta airship_pos
+	sta airship_pos_far
 	lda #$a599
-	sta player_pos
-	stz gold
-	stz gold + 2            ; gold is at least 3 bytes, maybe 4
-	stz curr_map            ; and curr_vehicle
+	sta player_pos_far
+	lda #$0000
+	sta gold_far
+	sta gold_far + 2              ; gold is at least 3 bytes, maybe 4
+	sta curr_map_far              ; and curr_vehicle
 
 	ldx #$0000
 @ClassLoop:
@@ -898,50 +894,54 @@ InputPosition   = $17
 	asl
 	asl
 	tay                           ; c*8 for the ClassStats array
-	asl
-	asl
-	asl
-	asl
-	tax                           ; c*$80 for the party data
+	txa
+	xba
+	lsr                           ; *$100/2 = *$80
+	tax                           ; X*$80 for the party data
 	pla                           ; recall the class number
-	sta party + ch_class, X       ; second byte here is ch_status, and it'll be 0
+	sta party_far + ch_class, X   ; second byte here is ch_status, and it'll be 0
 	lda ClassStats, Y
-	sta party + ch_str, X         ; str/agi
+	sta party_far + ch_str, X     ; str/agi
 	lda ClassStats + 2, Y
-	sta party + ch_int, X         ; int/vit
+	sta party_far + ch_int, X     ; int/vit
 	lda ClassStats + 4, Y
-	sta party + ch_luck, X        ; luck/magdef
+	sta party_far + ch_luck, X    ; luck/magdef
 	lda ClassStats + 6, Y
-	sta party + ch_max_hp, X
-	sta party + ch_curr_hp, X
+	sta party_far + ch_max_hp, X
+	sta party_far + ch_curr_hp, X
 
-	lda CharacterNames, Y         ; c*8 is also correct for name length
-	sta party + ch_name, X
+	txa                           ; X*$80
+	lsr
+	lsr
+	lsr
+	lsr                           ; X*8
+	tay
+	lda CharacterNames, Y         ; X*8 is for name length
+	sta party_far + ch_name, X
 	lda CharacterNames + 2, Y
-	sta party + ch_name + 2, X
+	sta party_far + ch_name + 2, X
 	lda CharacterNames + 4, Y
-	sta party + ch_name + 4, X
+	sta party_far + ch_name + 4, X
 	lda CharacterNames + 6, Y
-	sta party + ch_name + 6, X
+	sta party_far + ch_name + 6, X
 
 	plx
 	inx
 	cpx #$04
 	bne @ClassLoop
 
-	plb
 	plp
 	rts
 .endproc
 
 ClassStats:
 ; str agi int vit luck magdef hpL, hpH
-.byte 20, 5, 1, 10, 5, 15, 35, 0  ; Fighter
-.byte 5, 10, 5, 5, 15, 15, 30, 0  ; Thief
-.byte 5, 5, 5, 20, 5, 10, 33, 0   ; Black Belt
-.byte 10, 10, 10, 5, 5, 20, 30, 0 ; Red Mage
-.byte 5, 5, 15, 10, 5, 20, 28, 0  ; White Mage
-.byte 1, 10, 20, 1, 10, 20, 25, 0 ; Black Mage
+.byte $14, $05, $01, $0a, $05, $0f, $23, $00 ; Fighter
+.byte $05, $0a, $05, $05, $0f, $0f, $1e, $00 ; Thief
+.byte $05, $05, $05, $14, $05, $0a, $21, $00 ; Black Belt
+.byte $0a, $0a, $0a, $05, $05, $14, $1e, $00 ; Red Mage
+.byte $05, $05, $0f, $0a, $05, $14, $1c, $00 ; White Mage
+.byte $01, $0a, $14, $01, $0a, $14, $19, $00 ; Black Mage
 
 ; Draws a box on the screen, from x1 to x2, y1 to y2, where the arguments are passed
 ; on the stack in that order.

@@ -119,6 +119,11 @@
 .endproc
 
 .proc   NMIHandler
+	pha
+	phx
+	phy
+	phd
+	phb
 	php
 	XY16
 	A8
@@ -138,6 +143,11 @@
 	jsr CopyBG3TileMapBufferToVRAM
 :
 	plp
+	plb
+	pld
+	ply
+	plx
+	pla
 	rti
 .endproc
 

@@ -6,6 +6,7 @@
 .include "macros.inc"
 .include "registers.inc"
 .include "joypad.inc"
+.include "game-state.inc"
 
 .export LoadOverworld
 .export DoOverworldMovement
@@ -66,12 +67,6 @@ CharacterSpriteH = OamMirror + $200
 AirshipSpriteH   = OamMirror + $200 ; these need to be shifted
 ShipSpriteH      = OamMirror + $200
 
-START_POSITION   = $A599    ; start at $99, $A5, and the midpoint of the tile (+8 pixels)
-START_POSITION_X = $0998
-START_POSITION_Y = $0A58
-SHIP_INIT        = $A998    ; don't forget to move this to Pravoka
-AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
-
 .proc LoadOverworld
 	A8
 	lda #GAME_MODE_OVERWORLD
@@ -87,16 +82,28 @@ AIRSHIP_INIT     = $A79A    ; and this to Ryukahn Desert
 	lda #Vehicle_Foot       ; be on foot
 	sta CURR_VEHICLE
 	stz CURR_CLASS          ; be fighter
+
 	AXY16
-	ldx #START_POSITION_X   ; set the initial scroll
-	stx MAPPOSX
-	ldy #START_POSITION_Y
-	sty MAPPOSY
-	lda #START_POSITION     ; and map coords
+	lda player_pos_far
 	sta CHARACTER_POS
-	lda #SHIP_INIT          ; and ship coords
+	and #$00ff              ; get the X coordinate
+	asl
+	asl
+	asl
+	asl
+	adc #$0008              ; add 8 pixels to go to the middle of the 16x16 tile
+	sta MAPPOSX
+	lda player_pos_far
+	and #$ff00              ; get the Y coordinate
+	lsr
+	lsr
+	lsr
+	lsr
+	adc #$0008              ; add 8 pixels to go to the middle of the 16x16 tile
+	sta MAPPOSY
+	lda ship_pos_far
 	sta SHIP_POS
-	lda #AIRSHIP_INIT       ; and airship coords
+	lda airship_pos_far
 	sta AIRSHIP_POS
 	lda #$00                ; zero the airship transition
 	sta AIRSHIP_TRANSITION

@@ -58,7 +58,7 @@ MOVE_TO_POS     = $100F ; 2 bytes, where are we moving to
 SHIP_POS        = $1011 ; 2 bytes
 AIRSHIP_POS     = $1013 ; 2 bytes
 AIRSHIP_TRANSITION = $1015 ; 2 bytes
-CURR_CLASS      = $1017 ; 1 byte, this is temporary, will become current party member
+CURR_PARTY_MEMBER  = $1017 ; 1 byte
 
 CharacterSprite  = OamMirror     ; sprite memory locations
 AirshipSprite    = OamMirror + 4
@@ -81,7 +81,7 @@ ShipSpriteH      = OamMirror + $200
 	sta FACEDIR
 	lda #Vehicle_Foot       ; be on foot
 	sta CURR_VEHICLE
-	stz CURR_CLASS          ; be fighter
+	stz CURR_PARTY_MEMBER   ; be the first party member
 
 	AXY16
 	lda player_pos_far
@@ -539,8 +539,45 @@ ShipSpriteH      = OamMirror + $200
 	; There are a 12 character classes and 3 vehicles, each with 6 frames of animation.
 	; Each of these is a 16x16 sprite taking up 128 bytes.  All told, 12 KB of data
 	; (with room at the end for one more set of 6).
-	XY16
-	LONGCALL DMA2VRAML, BANK_OWGRAPHICS, OverworldSprites & $ffff, $6000, $4000
+	php
+	AXY16
+	ldy #$0000
+@PartyLoop:
+	pea BANK_OWGRAPHICS
+
+	tya
+	xba
+	lsr
+	tax                          ; Y*$80
+	lda party_far + ch_class, X  ; get the character class
+	and #$00ff
+	xba
+	asl
+	asl                          ; c*$400 is the sprite data index for this class
+	clc
+	adc #OverworldSprites & $ffff
+	pha
+
+	tya
+	xba
+	asl                          ; Y*$200 + $6000 is the destination VRAM word index
+	clc
+	adc #$6000
+	pha
+
+	LONGCALL DMA2VRAML, $0400    ; $400 is the size in bytes of one row of sprite graphics
+	pla
+	pla
+	pla
+
+	iny
+	cpy #$04
+	bne @PartyLoop
+
+	; Now do the ship, airship, and canoe.  $400 bytes/$200 words each, starting from position 12.
+	LONGCALL DMA2VRAML, BANK_OWGRAPHICS, OverworldSprites & $ffff + 12*$0400, $6000 + 12*$0200, 3*$0400
+
+	plp
 	rts
 .endproc
 
@@ -555,14 +592,40 @@ ShipSpriteH      = OamMirror + $200
 
 	lda #$80
 	sta CGADD       ; start at CGRAM address $80
-	ldx #$0000      ; and palette 0
+	A16
+	ldy #$0000      ; and party member 0
 @PartyLoop:
+	tya
+	xba
+	lsr             ; Y*$80 for the class
+	tax
+	lda party_far + ch_class, X
+	and #$00ff
+	asl
+	asl
+	asl
+	asl
+	asl             ; c*$20 is the palette index, $20 bytes per palette
+	tax
+
+	phy
+	ldy #$0000
+	A8
+@PaletteLoop:
 	lda OverworldSpritePalettes, X ; get a byte of palette data
 	sta CGDATA                     ; write it to CGRAM
 	inx
-	cpx #$0080                     ; length of palette data for 4 party members
+	iny
+	cpy #$0020                     ; length of palette data
+	bne @PaletteLoop
+
+	A16
+	ply
+	iny
+	cpy #$0004      ; 4 party members
 	bne @PartyLoop
 
+	A8
 	lda #$C0
 	sta CGADD       ; start at CGRAM address $C0
 	ldx #$0180      ; also sprite palette address $C0, vehicles
@@ -570,7 +633,7 @@ ShipSpriteH      = OamMirror + $200
 	lda OverworldSpritePalettes, X ; get a byte of palette data
 	sta CGDATA                     ; write it to CGRAM
 	inx
-	cpx #$01E0                     ; length of palette data for 3 vehicles
+	cpx #$01E0                     ; end of palette data for 3 vehicles
 	bne @VehicleLoop
 
 	rts
@@ -606,10 +669,10 @@ ShipSpriteH      = OamMirror + $200
 	and #BUTTON_R
 	beq @CheckMoving
 	A8
-	lda CURR_CLASS
+	lda CURR_PARTY_MEMBER
 	inc
 	and #$03
-	sta CURR_CLASS
+	sta CURR_PARTY_MEMBER
 	A16
 
 @CheckMoving:
@@ -1047,7 +1110,7 @@ ShipSpriteH      = OamMirror + $200
 	lda #$0e
 	bra @GetOffset
 @OnFoot:
-	lda CURR_CLASS
+	lda CURR_PARTY_MEMBER
 	sta TempPalette      ; use the class palette
 @GetOffset:
 	A16
